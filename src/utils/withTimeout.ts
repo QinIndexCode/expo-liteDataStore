@@ -1,8 +1,9 @@
 import { StorageError } from "../types/storageErrorInfc";
+import config from "../liteStore.config";
 
 export default function withTimeout<T>(
     promise: Promise<T>,
-    ms = 10000,
+    ms = config.timeout,
     operation = "chunked file operation"
 ): Promise<T> {
     return Promise.race([
