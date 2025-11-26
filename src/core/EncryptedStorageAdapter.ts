@@ -1,10 +1,10 @@
 // src/core/EncryptedStorageAdapter.ts
-// 加密存储适配装饰器 暂未实现
-import { storage } from "./adapter/FileSystemStorageAdapter";
-import { encrypt, decrypt, getMasterKey } from "../utils/crypto";
-import type { StorageAdapter } from "../types/storageAdapter";
+// 加密存储适配装饰器 
+import type { StorageAdapterInfc } from "../types/storageAdapterInfc";
+import { decrypt, encrypt, getMasterKey } from "../utils/crypto";
+import storage from "./adapter/FileSystemStorageAdapter";
 
-export class EncryptedStorageAdapter implements StorageAdapter {
+export class EncryptedStorageAdapter implements StorageAdapterInfc {
   private keyPromise = getMasterKey();
 
   private async key() {

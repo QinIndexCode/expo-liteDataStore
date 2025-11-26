@@ -8,3 +8,4 @@
 
 Simple JSON-based storage using `expo-file-system` + encrypted storage with `expo-secure-store`. No SQL, no native code — works in **Expo Go**.
 
+how to use this 

@@ -6,19 +6,7 @@ export type FilterCondition =
   | Partial<Record<string, any>>
   | { $or?: FilterCondition[]; $and?: FilterCondition[] };
 
-export type StorageErrorCode =
-  | "TABLE_NOT_FOUND"
-  | "TABLE_ALREADY_EXISTS"
-  | "WRITE_FAILED"
-  | "READ_FAILED"
-  | "DISK_FULL"
-  | "CORRUPTED_DATA"
-  | "CHUNK_INTEGRITY_FAILED"
-  | "PERMISSION_DENIED"
-  | "TIMEOUT"
-  | "UNKNOWN"
-  | "META_FILE_READ_ERROR"
-  | "META_FILE_WRITE_ERROR";
+
 
 export type WriteResult = {
     /**
@@ -56,10 +44,9 @@ export type ReadOptions = {
 export type CreateTableOptions = {
     /**
      * 表名 / table name
-     * @param tableName table name
      * @returns table name
      */
-  tableName: string; // 表名 / table name
+  columns?: Record<string, string>; // 列定义 / column definitions
   intermediates?: boolean; // 是否创建中间目录（没有则创建）建议开启 / whether create intermediates directories (if not exist)
   chunkSize?: number; // 分片大小（如果文件大小超过此值，则采取分片写入）/ chunk size (if file size exceeds this value, chunked write will be used)
 };

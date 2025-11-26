@@ -1,20 +1,41 @@
-// src/core/file/ChunkedFileHandler.ts
-// chunked file handler / 分块文件处理器
-
-//待处理：分块写入、分块读取、分块删除
-// src/core/file/ChunkedFileHandler.ts
-// src/core/file/ChunkedFileHandler.ts
+/**
+ * ChunkedFileHandler handles file operations for chunked storage mode.
+ * It appends data to multiple files (chunks) and manages metadata.
+ */
 import { Directory, File } from "expo-file-system";
 import * as Crypto from "expo-crypto";
 import { meta } from "../meta/MetadataManager";
+import config from "../../liteStore.config.js";
+import ROOT from "../../utils/ROOTPath.js";
+import { StorageError } from "../../types/storageAdapterInfc";
 
 const CHUNK_EXT = ".ldb";
 const META_FILE = "meta.ldb";
 
+const withTimeout = <T>(
+  promise: Promise<T>,
+  ms = 10000,
+  operation = "chunked file operation"
+): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() =>
+        reject(new StorageError(`${operation} timeout`, "TIMEOUT")), ms
+      )
+    ),
+  ]);
+};
+
 export class ChunkedFileHandler {
-  constructor(private tableDir: Directory) {}
+  private tableDir: Directory;
+
+  constructor(tableName: string) {
+    this.tableDir = new Directory(ROOT, tableName);
+  }
 
   private getChunkFile(index: number): File {
+    // 正确：大表是 users/0000.ldb
     return new File(this.tableDir, String(index).padStart(6, "0") + CHUNK_EXT);
   }
 
@@ -22,12 +43,15 @@ export class ChunkedFileHandler {
     return new File(this.tableDir, META_FILE);
   }
 
-  // write data to chunked file
+  /**
+   * Appends data to the table's chunked files.
+   * @param data - The data to append.
+   */ 
   async append(data: Record<string, any>[]) {
     if (data.length === 0) return;
 
-    // read current meta data
-    // this place is to calculate the chunk index
+    await this.tableDir.create({ intermediates: true });
+
     const currentMeta = meta.get(this.tableDir.name) || {
       mode: "chunked" as const,
       path: this.tableDir.name + "/",
@@ -39,34 +63,35 @@ export class ChunkedFileHandler {
 
     let chunkIndex = currentMeta.chunks || 0;
     let currentChunk: Record<string, any>[] = [];
+    let currentSize = 0;
 
     for (const item of data) {
-      currentChunk.push(item);
+      const itemSize = new TextEncoder().encode(JSON.stringify(item)).byteLength + 200; // 预估开销
 
-      // each 5000 items or 8MB, write a chunk
-      // this place is to calculate the item number of chunk
-      if (currentChunk.length >= 5000) {
+      if (currentSize + itemSize > config.chunkSize && currentChunk.length > 0) {
         await this.writeChunk(chunkIndex, currentChunk);
         chunkIndex++;
         currentChunk = [];
+        currentSize = 0;
       }
+
+      currentChunk.push(item);
+      currentSize += itemSize;
     }
 
-    // write last chunk if not empty
     if (currentChunk.length > 0) {
       await this.writeChunk(chunkIndex, currentChunk);
       chunkIndex++;
     }
 
-    // update meta data
     meta.update(this.tableDir.name, {
       mode: "chunked",
       count: currentMeta.count + data.length,
       chunks: chunkIndex,
+      updatedAt: Date.now(),
     });
   }
 
-  // write chunk to file
   private async writeChunk(index: number, data: Record<string, any>[]) {
     const file = this.getChunkFile(index);
     const content = JSON.stringify(data);
@@ -77,48 +102,67 @@ export class ChunkedFileHandler {
     await file.write(JSON.stringify({ data, hash }));
   }
 
-  // read all chunks
   async readAll(): Promise<Record<string, any>[]> {
     const metaFile = this.getMetaFile();
-    const info = await metaFile.info();
-    if (!info.exists) return [];
-
-    let metaInfo;
+    let chunksCount = 0;
     try {
-      const text = await metaFile.text();
-      metaInfo = JSON.parse(text);
-    } catch {
-      metaInfo = { chunks: 0 };
+      const info = await metaFile.info();
+      if (info.exists) {
+        const text = await metaFile.text();
+        const metaInfo = JSON.parse(text);
+        chunksCount = metaInfo.chunks || 0;
+      }
+    } catch (e) {
+      console.warn("读取分片元数据失败，使用扫描模式", e);
     }
 
     const all: Record<string, any>[] = [];
-    for (let i = 0; i < metaInfo.chunks; i++) {
+    for (let i = 0; i < Math.max(chunksCount, 1000); i++) { // 最多扫 1000 个，防无限循环
       const file = this.getChunkFile(i);
-      const fileInfo = await file.info();
-      if (!fileInfo.exists) continue;
-
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-
-      const expected = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        JSON.stringify(parsed.data)
-      );
-      if (expected !== parsed.hash) {
-        console.warn(`Chunk ${i} corrupted, skipping`);
-        continue;
+      const info = await file.info();
+      if (!info.exists) {
+        if (i < chunksCount) continue; // 中间缺失也跳过
+        break; // 连续缺失说明结束了
       }
 
-      all.push(...parsed.data);
-    }
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if (!parsed.data || parsed.hash === undefined) continue;
 
+        const expected = await Crypto.digestStringAsync(
+          Crypto.CryptoDigestAlgorithm.SHA256,
+          JSON.stringify(parsed.data)
+        );
+        if (expected !== parsed.hash) {
+          console.warn(`Chunk ${i} corrupted, skipping`);
+          continue;
+        }
+        all.push(...parsed.data);
+      } catch (e) {
+        console.warn(`读取 chunk ${i} 失败`, e);
+      }
+    }
     return all;
   }
 
   async clear() {
-    const entries = await this.tableDir.list();
-    await Promise.all(
-      entries.map(e => e.delete())
-    );
+    try {
+      const entries = await this.tableDir.list();
+      await Promise.all(
+        entries.map(async e => {
+          try {
+            e.delete();
+          } catch {}
+        })
+      );
+      meta.update(this.tableDir.name, {
+        count: 0,
+        chunks: 0,
+        updatedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error("清空分片表失败", error);
+    }
   }
 }

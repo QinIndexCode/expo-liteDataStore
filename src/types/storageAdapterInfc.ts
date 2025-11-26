@@ -5,14 +5,13 @@ import { Directory } from "expo-file-system";
 import type {
     CreateTableOptions,
     ReadOptions,
-    StorageErrorCode,
     WriteOptions,
     WriteResult
 } from "./storageTypes";
-
+import { StorageErrorCode } from "./storageErrorCode";
 
 //———————————— Storage Adapter Interface / 存储适配器接口 ————————————
-export interface StorageAdapter {
+export interface StorageAdapterInfc {
     /**
      * zh-CN:
      * 创建表
@@ -31,7 +30,7 @@ export interface StorageAdapter {
  
      * @returns Promise<void>
      */
-    createTable(dir: Directory,options: CreateTableOptions): Promise<void>;
+    createTable(tableName: string, options?: CreateTableOptions): Promise<void>;
 
     /**
      * zh-CN:

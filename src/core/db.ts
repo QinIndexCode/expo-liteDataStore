@@ -1,4 +1,4 @@
-import { storage } from "./adapter/FileSystemStorageAdapter";
+import storage from "./adapter/FileSystemStorageAdapter";
 import { EncryptedStorageAdapter } from "./EncryptedStorageAdapter";
 
 const USE_ENCRYPTION = true; // 上线改 true，调试改 false

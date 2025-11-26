@@ -2,8 +2,8 @@
 // 元数据管理器终极版 / Metadata Manager Ultimate Edition
 
 import { File } from "expo-file-system";
-import { StorageError } from "../../types/storageAdapter";
-import { ROOT } from "../adapter/FileSystemStorageAdapter";
+import { StorageError } from "../../types/storageAdapterInfc";
+import ROOT from "../../utils/ROOTPath";
  
 const META_FILE = new File(ROOT, "meta.ldb");
 const CURRENT_VERSION = "1.0.0";
@@ -88,7 +88,7 @@ export class MetadataManager {
             this.dirty = false;
             console.log("Metadata saved");
         } catch (error) {
-            throw new StorageError("Metadata write failed", "WRITE_FAILED", error);
+            throw new StorageError("Metadata write failed", "META_FILE_WRITE_ERROR", error);
         } finally {
             this.writing = false;
         }
@@ -104,7 +104,9 @@ export class MetadataManager {
     get(tableName: string): TableSchema | undefined {
         return this.cache.tables[tableName];
     }
-
+    getPath(tableName: string): string {
+        return this.cache.tables[tableName]?.path || `${tableName}.ldb`;
+    }
     // 更新表元数据（自动合并）
     update(tableName: string, updates: Partial<TableSchema>) {
         const existing = this.cache.tables[tableName] || {
