@@ -1,7 +1,7 @@
 import storage from "./adapter/FileSystemStorageAdapter";
 import { EncryptedStorageAdapter } from "./EncryptedStorageAdapter";
 
-const USE_ENCRYPTION = true; // 上线改 true，调试改 false
+const USE_ENCRYPTION = false; // 上线改 true，调试改 false
 
 export const db = USE_ENCRYPTION
   ? new EncryptedStorageAdapter()

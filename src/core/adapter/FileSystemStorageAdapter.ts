@@ -1,10 +1,10 @@
 // src/core/adapter/FileSystemStorageAdapter.ts
 import config from "../../liteStore.config.js";
-import { StorageTaskProcessor, StorageTaskType } from "../../taskQueue/StorageTaskProcessor";
-import { TaskPriority, taskQueue } from "../../taskQueue/taskQueue.js";
-import { MetadataManagerInfc } from "../../types/metadataManagerInfc.js";
-import { StorageAdapterInfc } from "../../types/storageAdapterInfc.js";
-import { StorageError } from "../../types/storageErrorInfc.js";
+import { StorageTaskProcessor } from "../../taskQueue/StorageTaskProcessor";
+import { taskQueue } from "../../taskQueue/taskQueue";
+import { MetadataManagerInfc } from "../../types/metadataManagerInfc";
+import { StorageAdapterInfc } from "../../types/storageAdapterInfc";
+import { StorageError } from "../../types/storageErrorInfc";
 import type {
     CreateTableOptions,
     ReadOptions,
@@ -15,7 +15,7 @@ import { FileOperationManager } from "../FileOperationManager";
 import { CacheManager, CacheStrategy } from "../cache/CacheManager";
 import { DataReader } from "../data/DataReader";
 import { DataWriter } from "../data/DataWriter";
-import { IndexManager } from "../index/IndexManager.js";
+import { IndexManager } from "../index/IndexManager";
 import { meta } from "../meta/MetadataManager";
 import { CacheService } from "../service/CacheService";
 import { FileService } from "../service/FileService";
@@ -230,32 +230,50 @@ export class FileSystemStorageAdapter implements StorageAdapterInfc {
             };
         }
         
-        // 使用任务队列异步处理批量操作
-        return new Promise((resolve, reject) => {
-            taskQueue.addTask(
-                StorageTaskType.BULK_WRITE,
-                { tableName, operations },
-                {
-                    priority: TaskPriority.HIGH,
-                    timeout: 60000, // 60秒超时
-                    callback: (task) => {
-                        if (task.status === 'completed') {
-                            resolve(task.result as WriteResult);
-                        } else {
-                            reject(new StorageError(
-                                `bulk write to table ${tableName} failed`,
-                                "BULK_OPERATION_FAILED",
-                                {
-                                    cause: task.error,
-                                    details: `Failed to perform bulk write on table: ${tableName}`,
-                                    suggestion: "Check if you have write permissions and the disk is not full"
-                                }
-                            ));
+        // 直接执行批量操作，不使用任务队列，避免无限递归
+        let currentData = await this.read(tableName);
+        let writtenCount = 0;
+        
+        for (const op of operations) {
+            const items = Array.isArray(op.data) ? op.data : [op.data];
+            
+            switch (op.type) {
+                case "insert":
+                    currentData.push(...items);
+                    writtenCount += items.length;
+                    break;
+                case "update":
+                    for (const item of items) {
+                        if (item.id) {
+                            const index = currentData.findIndex(d => d.id === item.id);
+                            if (index !== -1) {
+                                currentData[index] = { ...currentData[index], ...item };
+                                writtenCount++;
+                            }
                         }
                     }
-                }
-            );
-        });
+                    break;
+                case "delete":
+                    for (const item of items) {
+                        if (item.id) {
+                            const initialLength = currentData.length;
+                            currentData = currentData.filter(d => d.id !== item.id);
+                            if (currentData.length < initialLength) {
+                                writtenCount++;
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+        
+        // 写入更新后的数据
+        const result = await this.write(tableName, currentData, { mode: "overwrite" });
+        
+        return {
+            ...result,
+            written: writtenCount
+        };
     }
 
     // ==================== 事务管理 ====================
@@ -286,31 +304,32 @@ export class FileSystemStorageAdapter implements StorageAdapterInfc {
     
     // ==================== 模式迁移 ====================
     async migrateToChunked(tableName: string): Promise<void> {
-        // 使用任务队列异步处理模式迁移
-        return new Promise((resolve, reject) => {
-            taskQueue.addTask(
-                StorageTaskType.MIGRATE_TO_CHUNKED,
-                { tableName },
+        // 直接执行迁移操作，不使用任务队列，避免无限递归
+        // 读取当前表数据
+        const data = await this.read(tableName);
+        
+        // 获取当前表的元数据
+        const tableMeta = this.metadataManager.get(tableName);
+        if (!tableMeta) {
+            throw new StorageError(
+                `Table ${tableName} not found`,
+                "TABLE_NOT_FOUND",
                 {
-                    priority: TaskPriority.NORMAL,
-                    timeout: 120000, // 120秒超时
-                    callback: (task) => {
-                        if (task.status === 'completed') {
-                            resolve();
-                        } else {
-                            reject(new StorageError(
-                                `migrate table ${tableName} to chunked mode failed`,
-                                "MIGRATION_FAILED",
-                                {
-                                    cause: task.error,
-                                    details: `Failed to migrate table ${tableName} to chunked mode`,
-                                    suggestion: "Check if you have write permissions and the disk is not full"
-                                }
-                            ));
-                        }
-                    }
+                    details: `Failed to migrate table ${tableName} to chunked mode: table not found`,
+                    suggestion: "Check if the table name is correct"
                 }
             );
+        }
+        
+        // 删除原表
+        await this.deleteTable(tableName);
+        
+        // 创建新的分片表
+        await this.createTable(tableName, {
+            mode: "chunked",
+            initialData: data,
+            isHighRisk: tableMeta.isHighRisk,
+            highRiskFields: tableMeta.highRiskFields
         });
     }
 }

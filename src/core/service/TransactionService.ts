@@ -16,7 +16,7 @@ export interface Snapshot {
 }
 
 export class TransactionService {
-    public isInTransaction = false;
+    private _isInTransaction = false;
     private operations: Operation[] = [];
     private snapshots: Map<string, Snapshot> = new Map();
     private metadataManager: MetadataManagerInfc;
@@ -34,10 +34,10 @@ export class TransactionService {
      * 开始事务
      */
     async beginTransaction(): Promise<void> {
-        if (this.isInTransaction) {
+        if (this.isInTransaction()) {
             throw new Error("Transaction already in progress");
         }
-        this.isInTransaction = true;
+        this._isInTransaction = true;
         this.operations = [];
         this.snapshots.clear();
     }
@@ -50,7 +50,7 @@ export class TransactionService {
         deleteFn: (tableName: string, where: any) => Promise<any>,
         bulkWriteFn: (tableName: string, operations: any[]) => Promise<any>
     ): Promise<void> {
-        if (!this.isInTransaction) {
+        if (!this.isInTransaction()) {
             throw new Error("No transaction in progress");
         }
 
@@ -71,7 +71,7 @@ export class TransactionService {
             }
         } finally {
             // 无论成功还是失败，都结束事务
-            this.isInTransaction = false;
+            this._isInTransaction = false;
             this.operations = [];
             this.snapshots.clear();
         }
@@ -81,7 +81,7 @@ export class TransactionService {
      * 回滚事务
      */
     async rollback(): Promise<void> {
-        if (!this.isInTransaction) {
+        if (!this.isInTransaction()) {
             throw new Error("No transaction in progress");
         }
 
@@ -92,7 +92,7 @@ export class TransactionService {
         }
 
         // 结束事务
-        this.isInTransaction = false;
+        this._isInTransaction = false;
         this.operations = [];
         this.snapshots.clear();
     }
@@ -101,14 +101,21 @@ export class TransactionService {
      * 检查是否在事务中
      */
     getInTransaction(): boolean {
-        return this.isInTransaction;
+        return this._isInTransaction;
+    }
+
+    /**
+     * 检查是否在事务中
+     */
+    isInTransaction(): boolean {
+        return this.getInTransaction();
     }
 
     /**
      * 保存快照
      */
     saveSnapshot(tableName: string, data: Record<string, any>[]): void {
-        if (!this.isInTransaction) {
+        if (!this.isInTransaction()) {
             return;
         }
 
@@ -125,7 +132,7 @@ export class TransactionService {
      * 添加操作到事务队列
      */
     addOperation(operation: Operation): void {
-        if (!this.isInTransaction) {
+        if (!this.isInTransaction()) {
             return;
         }
 

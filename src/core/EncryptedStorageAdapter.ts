@@ -168,4 +168,38 @@ export class EncryptedStorageAdapter implements StorageAdapterInfc {
     // 创建新的分片表并写入数据
     await this.createTable(tableName, { initialData: data, mode: "chunked" });
   }
+
+  async delete(
+    tableName: string,
+    where: Record<string, any>
+  ): Promise<number> {
+    // 对于加密表，先读取所有数据，在内存中处理，然后重新加密写入
+    const data = await this.read(tableName);
+    const initialLength = data.length;
+    
+    // 应用删除过滤
+    const filteredData = data.filter(item => {
+      for (const [key, value] of Object.entries(where)) {
+        if (item[key] !== value) return true;
+      }
+      return false;
+    });
+    
+    // 重新加密并写入
+    await this.write(tableName, filteredData);
+    
+    return initialLength - filteredData.length;
+  }
+
+  async beginTransaction(): Promise<void> {
+    return storage.beginTransaction();
+  }
+
+  async commit(): Promise<void> {
+    return storage.commit();
+  }
+
+  async rollback(): Promise<void> {
+    return storage.rollback();
+  }
 }
