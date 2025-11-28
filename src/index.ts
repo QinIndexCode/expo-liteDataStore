@@ -80,3 +80,24 @@ export type {
   WriteOptions,
   WriteResult
 } from './types/storageTypes.js';
+
+
+export default {
+  createTable,
+  deleteTable,
+  hasTable,
+  listTables,
+  insert,
+  read,
+  countTable,
+  findOne,
+  findMany,
+  remove,
+  bulkWrite,
+  beginTransaction,
+  commit,
+  rollback,
+  migrateToChunked,
+  clearTable,
+  update
+}
