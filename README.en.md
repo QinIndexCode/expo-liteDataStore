@@ -1,4 +1,4 @@
-# expo-liteDataStore
+# expo-lite-data-store
 
 [![npm version](https://img.shields.io/npm/v/expo-lite-db-store?color=%23ff5555)](https://www.npmjs.com/package/expo-lite-db-store) [![GitHub license](https://img.shields.io/github/license/QinIndexCode/expo-liteDataStore)](https://github.com/QinIndexCode/expo-liteDataStore/blob/main/LICENSE)
 
@@ -25,10 +25,10 @@ Suitable for small to medium data persistence scenarios: user settings, form dra
 ## Installation
 
 ```bash
-npm install expo-lite-db-store
+npm install expo-lite-data-store
 # or use yarn / pnpm
-yarn add expo-lite-db-store
-pnpm add expo-lite-db-store
+yarn add expo-lite-data-store
+pnpm add expo-lite-data-store
 ```
 
 ## Quick Start
@@ -41,7 +41,7 @@ import {
   update, 
   remove, 
   findMany 
-} from 'expo-lite-db-store';
+} from 'expo-lite-data-store';
 
 // Create table
 await createTable('users');
@@ -112,7 +112,7 @@ await remove('users', { id: 2 });
 ### Transaction Operations
 
 ```ts
-import { beginTransaction, commit, rollback, insert, update } from 'expo-lite-db-store';
+import { beginTransaction, commit, rollback, insert, update } from 'expo-lite-data-store';
 
 try {
   // Start transaction
@@ -134,7 +134,7 @@ try {
 ### Complex Queries
 
 ```ts
-import { findMany } from 'expo-lite-db-store';
+import { findMany } from 'expo-lite-data-store';
 
 // Query users older than 30 and active, skip first 1, limit to 10
 const users = await findMany('users', 

@@ -13,8 +13,6 @@ expo-env.d.ts
 .npmignore
 
 # 工具和文档
-scripts/
-app/
 *.tsbuildinfo
 *.md
 !README.md
