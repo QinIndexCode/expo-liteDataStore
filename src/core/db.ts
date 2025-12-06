@@ -4,8 +4,9 @@ import { EncryptedStorageAdapter } from './EncryptedStorageAdapter';
 /**
  * 是否启用加密存储
  * 生产环境建议设置为 true，开发环境可设置为 false 以便调试
+ * 测试环境自动禁用加密，避免复杂的加密依赖问题
  */
-const USE_ENCRYPTION = false; // 上线改 true，调试改 false
+const USE_ENCRYPTION = !(typeof process !== 'undefined' && process.env.NODE_ENV === 'test') && true; // 测试环境自动禁用加密
 
 /**
  * 默认数据库实例

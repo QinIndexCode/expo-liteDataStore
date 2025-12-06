@@ -16,6 +16,7 @@ import {
 import config from '../liteStore.config';
 import storage from './adapter/FileSystemStorageAdapter';
 import { ErrorHandler } from '../utils/errorHandler';
+import { QueryEngine } from './query/QueryEngine';
 
 export class EncryptedStorageAdapter implements IStorageAdapter {
   private keyPromise: Promise<string>;
@@ -194,7 +195,12 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
 
         let finalData: Record<string, any>[];
 
-        if (config.encryption.enableFieldLevelEncryption && config.encryption.encryptedFields.length > 0) {
+        // 即使是清空表（空数据），也需要正确处理
+        if (dataToEncrypt.length === 0) {
+          // 空数据处理 - 直接写入空数组的加密形式
+          const encrypted = await encrypt(JSON.stringify([]), key);
+          finalData = [{ __enc: encrypted }];
+        } else if (config.encryption.enableFieldLevelEncryption && config.encryption.encryptedFields.length > 0) {
           // 字段级加密
           if (config.encryption.useBulkOperations && dataToEncrypt.length > 1) {
             // 批量字段级加密
@@ -243,11 +249,11 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
     return ErrorHandler.handleAsyncError(
       async () => {
         // 检查缓存是否有效
-        const shouldBypassCache = options?.bypassCache || false;
-        const cached = this.cachedData.get(tableName);
-        if (!shouldBypassCache && cached && Date.now() - cached.timestamp < this.cacheTimeout) {
-          return cached.data;
-        }
+    const shouldBypassCache = options?.bypassCache || true; // Default to true to always get fresh data
+    const cached = this.cachedData.get(tableName);
+    if (!shouldBypassCache && cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      return cached.data;
+    }
 
         const raw = await storage.read(tableName, options);
         if (raw.length === 0) return [];
@@ -379,105 +385,31 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
   async findMany(
     tableName: string,
     filter?: Record<string, any>,
-    options?: { skip?: number; limit?: number }
+    options?: { 
+      skip?: number; 
+      limit?: number;
+      sortBy?: string | string[];
+      order?: 'asc' | 'desc' | ('asc' | 'desc')[];
+      sortAlgorithm?: 'default' | 'fast' | 'counting' | 'merge' | 'slow';
+    }
   ): Promise<Record<string, any>[]> {
     // 优先使用缓存
     let data = await this.read(tableName);
 
-    // 应用过滤 - 优化性能的过滤逻辑
+    // 应用过滤 - 使用QueryEngine处理所有复杂查询操作符
     if (filter) {
-      const filterKeys = Object.keys(filter);
-
-      // 简单过滤优化：如果只有一个简单条件，使用更高效的实现
-      if (filterKeys.length === 1) {
-        const [key] = filterKeys;
-        const value = filter[key as string];
-
-        // 简单值比较
-        if (typeof value !== 'object' || value === null) {
-          data = data.filter(item => item[key as string] === value);
-        } else {
-          // 处理操作符
-          data = data.filter(item => {
-            // 快速路径：常见的比较操作符
-            if (value.$eq !== undefined) return item[key as string] === value.$eq;
-            if (value.$ne !== undefined) return item[key as string] !== value.$ne;
-
-            // 其他操作符
-            for (const [op, opValue] of Object.entries(value)) {
-              switch (op) {
-                case '$gt':
-                  if (!(item[key as string] > (opValue as any))) return false;
-                  break;
-                case '$gte':
-                  if (!(item[key as string] >= (opValue as any))) return false;
-                  break;
-                case '$lt':
-                  if (!(item[key as string] < (opValue as any))) return false;
-                  break;
-                case '$lte':
-                  if (!(item[key as string] <= (opValue as any))) return false;
-                  break;
-                // 嵌套对象比较
-                default:
-                  if (item[key as string]?.[op] !== opValue) return false;
-                  break;
-              }
-            }
-            return true;
-          });
-        }
-      } else {
-        // 多条件过滤
-        data = data.filter(item => {
-          for (const [key, value] of Object.entries(filter)) {
-            if (typeof value === 'object' && value !== null) {
-              // 处理比较操作符
-              for (const [op, opValue] of Object.entries(value)) {
-                switch (op) {
-                  case '$gt':
-                    if (!(item[key] > (opValue as any))) return false;
-                    break;
-                  case '$gte':
-                    if (!(item[key] >= (opValue as any))) return false;
-                    break;
-                  case '$lt':
-                    if (!(item[key] < (opValue as any))) return false;
-                    break;
-                  case '$lte':
-                    if (!(item[key] <= (opValue as any))) return false;
-                    break;
-                  case '$eq':
-                    if (item[key] !== opValue) return false;
-                    break;
-                  case '$ne':
-                    if (item[key] === opValue) return false;
-                    break;
-                  // 嵌套对象比较
-                  default:
-                    if (item[key]?.[op] !== opValue) return false;
-                    break;
-                }
-              }
-            } else {
-              // 简单值比较
-              if (item[key] !== value) return false;
-            }
-          }
-          return true;
-        });
-      }
+      data = QueryEngine.filter(data, filter);
     }
 
-    // 应用分页 - 优化：只在需要时进行分页操作
-    let result = data;
-    if (options?.skip || options?.limit) {
-      const start = options?.skip || 0;
-      const end = options?.limit ? start + options.limit : undefined;
-      result = data.slice(start, end);
+    // 应用排序
+    if (options?.sortBy) {
+      data = QueryEngine.sort(data, options.sortBy, options.order, options.sortAlgorithm);
     }
 
-    return result;
+    // 应用分页 - 优化：使用QueryEngine的分页方法
+    data = QueryEngine.paginate(data, options?.skip, options?.limit);
+
+    return data;
   }
 
   async bulkWrite(
@@ -549,7 +481,7 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
         }
 
         // 重新加密并写入
-        const result = await this.write(tableName, data);
+        const result = await this.write(tableName, data, { mode: 'overwrite' });
 
         return {
           ...result,
@@ -619,7 +551,7 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
       }
 
       // 重新加密并写入
-      const result = await this.write(tableName, data);
+      const result = await this.write(tableName, data, { mode: 'overwrite' });
 
       return {
         ...result,
@@ -628,43 +560,43 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
     } else {
       // 不使用批量优化，逐个处理操作
       let writtenCount = 0;
+      let finalData = await this.read(tableName);
 
       for (const operation of operations) {
-        let data = await this.read(tableName);
         const items = Array.isArray(operation.data) ? operation.data : [operation.data];
 
         switch (operation.type) {
           case 'insert':
             // 插入操作
-            data.push(...items);
-            await this.write(tableName, data);
+            finalData.push(...items);
             writtenCount += items.length;
             break;
           case 'update':
             // 更新操作
             for (const item of items) {
-              const index = data.findIndex(d => d['id'] === item['id']);
+              const index = finalData.findIndex(d => d['id'] === item['id']);
               if (index !== -1) {
-                data[index] = { ...data[index], ...item };
+                finalData[index] = { ...finalData[index], ...item };
                 writtenCount++;
               }
             }
-            await this.write(tableName, data);
             break;
           case 'delete':
             // 删除操作
-            const initialLength = data.length;
+            const initialLength = finalData.length;
             const idsToDelete = new Set(items.map(item => item['id']));
-            data = data.filter(item => !idsToDelete.has(item['id']));
-            await this.write(tableName, data);
-            writtenCount += initialLength - data.length;
+            finalData = finalData.filter(item => !idsToDelete.has(item['id']));
+            writtenCount += initialLength - finalData.length;
             break;
         }
       }
 
+      // 统一写入更新后的数据
+      await this.write(tableName, finalData, { mode: 'overwrite' });
+
       return {
         written: writtenCount,
-        totalAfterWrite: writtenCount,
+        totalAfterWrite: finalData.length,
         chunked: false,
       };
     }
@@ -689,25 +621,10 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
     const data = await this.read(tableName);
     const initialLength = data.length;
 
-    // 优化删除过滤逻辑
-    const whereKeys = Object.keys(where);
-
-    // 优化：如果只有一个简单条件，使用更高效的实现
-    if (whereKeys.length === 1) {
-      const [key] = whereKeys;
-      const value = where[key as string];
-      const filteredData = data.filter(item => item[key as string] !== value);
-
-      // 重新加密并写入
-      await this.write(tableName, filteredData);
-
-      return initialLength - filteredData.length;
-    }
-
-    // 多条件过滤
+    // 使用QueryEngine处理复杂删除条件
     const filteredData = data.filter(item => {
-      // 检查item是否匹配where条件，如果匹配则删除（返回false），否则保留（返回true）
-      return !whereKeys.every(whereKey => item[whereKey] === where[whereKey]);
+      // 检查item是否不匹配where条件（即要保留的数据）
+      return !QueryEngine.filter([item], where).length;
     });
 
     // 重新加密并写入

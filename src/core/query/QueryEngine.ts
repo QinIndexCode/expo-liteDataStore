@@ -10,206 +10,128 @@ import {
 } from '../../utils/sortingTools';
 import { QUERY } from '../constants';
 
-/**
- * 查询操作符类型
- */
-type Operator = '$eq' | '$ne' | '$gt' | '$gte' | '$lt' | '$lte' | '$in' | '$nin' | '$like' | '$and' | '$or';
-
-/**
- * 操作符映射表，将操作符映射到对应的比较函数
- */
-const operators: Record<Operator, (a: any, b: any) => boolean> = {
-  $eq: (a, b) => a === b,
-  $ne: (a, b) => a !== b,
-  $gt: (a, b) => a > b,
-  $gte: (a, b) => a >= b,
-  $lt: (a, b) => a < b,
-  $lte: (a, b) => a <= b,
-  $in: (a, b) => {
-    if (!Array.isArray(b)) return false;
-    if (Array.isArray(a)) {
-      // 字段值是数组，检查是否有交集
-      return a.some(item => b.includes(item));
-    }
-    // 字段值不是数组，检查是否在查询数组中
-    return b.includes(a);
-  },
-  $nin: (a, b) => {
-    if (!Array.isArray(b)) return true;
-    if (Array.isArray(a)) {
-      // 字段值是数组，检查是否没有交集
-      return !a.some(item => b.includes(item));
-    }
-    // 字段值不是数组，检查是否不在查询数组中
-    return !b.includes(a);
-  },
-  $like: (a, b) => {
-    if (typeof a !== 'string' || typeof b !== 'string') return false;
-    // 简单的LIKE实现，支持%通配符
-    const pattern = b.replace(/%/g, '.*');
-    const regex = new RegExp(`^${pattern}$`, 'i');
-    return regex.test(a);
-  },
-  $and: () => false, // 特殊处理，不在这里使用
-  $or: () => false, // 特殊处理，不在这里使用
-};
-
-/**
- * 查询计划类型定义
- */
-const QueryPlan = {
-  FunctionPlan: 'function',
-  OrPlan: 'or',
-  AndPlan: 'and',
-  OperatorPlan: 'operator',
-} as const;
-
-/**
- * 查询计划接口
- */
-type QueryPlan = {
-  type: (typeof QueryPlan)[keyof typeof QueryPlan];
-};
-
-/**
- * 函数查询计划
- */
-type FunctionQueryPlan = QueryPlan & {
-  type: typeof QueryPlan.FunctionPlan;
-  condition: (item: any) => boolean;
-};
-
-/**
- * OR查询计划
- */
-type OrQueryPlan = QueryPlan & {
-  type: typeof QueryPlan.OrPlan;
-  conditions: QueryPlan[];
-};
-
-/**
- * AND查询计划
- */
-type AndQueryPlan = QueryPlan & {
-  type: typeof QueryPlan.AndPlan;
-  conditions: QueryPlan[];
-};
-
-/**
- * 操作符查询计划
- */
-type OperatorQueryPlan = QueryPlan & {
-  type: typeof QueryPlan.OperatorPlan;
-  key: string;
-  operator: Operator;
-  value: any;
-};
-
 export class QueryEngine {
   /**
    * 过滤数据，支持多种查询操作符
    */
   static filter<T extends Record<string, any>>(data: T[], condition?: FilterCondition): T[] {
     if (!condition) return data;
-
-    // 生成查询计划
-    const queryPlan = this.generateQueryPlan(condition);
-
-    // 执行查询计划
-    return data.filter(item => this.executeQueryPlan(item, queryPlan));
-  }
-
-  /**
-   * 生成查询计划，将条件转换为更高效的执行结构
-   */
-  private static generateQueryPlan(condition: FilterCondition): QueryPlan {
+    
+    // 函数条件
     if (typeof condition === 'function') {
-      return {
-        type: QueryPlan.FunctionPlan,
-        condition,
-      } as FunctionQueryPlan;
+      return data.filter(condition as (value: T, index: number, array: T[]) => unknown);
     }
-
-    if ('$or' in condition) {
-      return {
-        type: QueryPlan.OrPlan,
-        conditions: condition.$or!.map((c: FilterCondition) => this.generateQueryPlan(c)),
-      } as OrQueryPlan;
-    }
-
+    
+    // 复合 AND 条件
     if ('$and' in condition) {
-      return {
-        type: QueryPlan.AndPlan,
-        conditions: condition.$and!.map((c: FilterCondition) => this.generateQueryPlan(c)),
-      } as AndQueryPlan;
-    }
-
-    // 处理普通条件，转换为操作符条件
-    const processedConditions: QueryPlan[] = [];
-
-    for (const [key, value] of Object.entries(condition)) {
-      // 如果值是对象，检查是否包含操作符
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        for (const [op, opValue] of Object.entries(value)) {
-          if (op in operators) {
-            processedConditions.push({
-              type: QueryPlan.OperatorPlan,
-              key,
-              operator: op as Operator,
-              value: opValue,
-            } as OperatorQueryPlan);
-          }
-        }
-      } else {
-        // 默认为等于操作
-        processedConditions.push({
-          type: QueryPlan.OperatorPlan,
-          key,
-          operator: '$eq',
-          value,
-        } as OperatorQueryPlan);
+      let result = [...data];
+      for (const subCondition of condition.$and!) {
+        result = this.filter(result, subCondition);
       }
+      return result;
     }
-
-    return {
-      type: QueryPlan.AndPlan,
-      conditions: processedConditions,
-    } as AndQueryPlan;
-  }
-
-  /**
-   * 执行查询计划
-   */
-  private static executeQueryPlan(item: Record<string, any>, queryPlan: QueryPlan): boolean {
-    switch (queryPlan.type) {
-      case QueryPlan.FunctionPlan:
-        return (queryPlan as FunctionQueryPlan).condition(item);
-
-      case QueryPlan.OrPlan:
-        return (queryPlan as OrQueryPlan).conditions.some((condition: QueryPlan) =>
-          this.executeQueryPlan(item, condition)
-        );
-
-      case QueryPlan.AndPlan:
-        return (queryPlan as AndQueryPlan).conditions.every((condition: QueryPlan) =>
-          this.executeQueryPlan(item, condition)
-        );
-
-      case QueryPlan.OperatorPlan:
-        const { key, operator, value } = queryPlan as OperatorQueryPlan;
+    
+    // 复合 OR 条件
+    if ('$or' in condition) {
+      const results = new Set<T>();
+      for (const subCondition of condition.$or!) {
+        const filtered = this.filter(data, subCondition);
+        filtered.forEach(item => results.add(item));
+      }
+      return Array.from(results);
+    }
+    
+    // 简单条件
+    return data.filter(item => {
+      for (const [key, value] of Object.entries(condition)) {
         const itemValue = item[key];
-
-        // 处理undefined值的情况
+        
         if (itemValue === undefined) {
           return false;
         }
-
-        // 使用操作符映射表执行比较
-        return operators[operator](itemValue, value);
-
-      default:
-        return false;
-    }
+        
+        // 操作符条件
+        if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          let matches = true;
+          
+          for (const [op, opValue] of Object.entries(value)) {
+            switch (op) {
+              case '$eq':
+                if (itemValue !== opValue) matches = false;
+                break;
+              case '$ne':
+                if (itemValue === opValue) matches = false;
+                break;
+              case '$gt':
+                if (typeof itemValue === 'number' && typeof opValue === 'number' && itemValue <= opValue) matches = false;
+                break;
+              case '$gte':
+                if (typeof itemValue === 'number' && typeof opValue === 'number' && itemValue < opValue) matches = false;
+                break;
+              case '$lt':
+                if (typeof itemValue === 'number' && typeof opValue === 'number' && itemValue >= opValue) matches = false;
+                break;
+              case '$lte':
+                if (typeof itemValue === 'number' && typeof opValue === 'number' && itemValue > opValue) matches = false;
+                break;
+              case '$in':
+                if (!Array.isArray(opValue)) {
+                  matches = false;
+                } else {
+                  if (Array.isArray(itemValue)) {
+                    if (!itemValue.some(item => opValue.includes(item))) {
+                      matches = false;
+                    }
+                  } else {
+                    if (!opValue.includes(itemValue)) {
+                      matches = false;
+                    }
+                  }
+                }
+                break;
+              case '$nin':
+                if (!Array.isArray(opValue)) {
+                  matches = false;
+                } else {
+                  if (Array.isArray(itemValue)) {
+                    if (itemValue.some(item => opValue.includes(item))) {
+                      matches = false;
+                    }
+                  } else {
+                    if (opValue.includes(itemValue)) {
+                      matches = false;
+                    }
+                  }
+                }
+                break;
+              case '$like':
+                if (typeof itemValue !== 'string' || typeof opValue !== 'string') {
+                  matches = false;
+                } else {
+                  const pattern = opValue.replace(/%/g, '.*');
+                  const regex = new RegExp(`^${pattern}$`, 'i');
+                  if (!regex.test(itemValue)) {
+                    matches = false;
+                  }
+                }
+                break;
+              default:
+                matches = false;
+            }
+            
+            if (!matches) break;
+          }
+          
+          if (!matches) return false;
+        } 
+        // 简单值比较
+        else if (itemValue !== value) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
   }
 
   /**

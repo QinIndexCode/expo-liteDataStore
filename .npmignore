@@ -4,7 +4,7 @@ __mocks__/
 **/__tests__/
 **/*.test.*
 coverage/
-
+apiTest/
 # 开发配置
 jest*.js
 tsconfig*.json

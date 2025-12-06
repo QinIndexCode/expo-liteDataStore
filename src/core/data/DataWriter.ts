@@ -203,13 +203,15 @@ export class DataWriter {
         // 统一处理单条数据和多条数据，转换为数组格式
         const items = Array.isArray(data) ? data : [data];
 
-        // 空数据直接返回，避免不必要的操作
-        if (items.length === 0) {
+        // 只有非覆盖模式下的空数据才直接返回
+        if (items.length === 0 && options?.mode !== 'overwrite') {
           return await this.handleEmptyData(tableName);
         }
 
         // 验证写入数据的有效性，确保数据格式正确
-        this.validateWriteData(items);
+        if (items.length > 0) {
+          this.validateWriteData(items);
+        }
 
         // 自动创建表（如果不存在）
         await this.ensureTableExists(tableName);

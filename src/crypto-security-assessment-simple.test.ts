@@ -18,7 +18,7 @@
 
 import { encrypt, decrypt, encryptBulk, decryptBulk, encryptFields, decryptFields } from './utils/crypto';
 import { getMasterKey } from './utils/crypto';
-import config from './liteStore.config.js';
+import config from './liteStore.config';
 
 // ==================== 配置区 ====================
 

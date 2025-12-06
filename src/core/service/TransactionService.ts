@@ -45,7 +45,9 @@ export class TransactionService {
 
     try {
       // 执行所有操作
-      for (const operation of this.operations) {
+      // 重要：在开始迭代前创建操作数组的副本，防止在迭代过程中修改原数组导致无限循环
+      const operationsCopy = [...this.operations];
+      for (const operation of operationsCopy) {
         switch (operation.type) {
           case 'write':
             await writeFn(operation.tableName, operation.data, operation.options);

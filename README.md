@@ -804,7 +804,7 @@ A: 运行 `npm run build:all` 来构建完整的TypeScript和JavaScript版本。
 
 ## 📞 支持与反馈
 
-- 📧 **邮箱**: [qinIndexCode@gmail.com](mailto:qinIndexCode@gmail.com)
+- 📧 **邮箱**: [qinIndexCode@gmail.com](gmail:qinIndexCode@gmail.com)
 - 💬 **Issues**: [GitHub Issues](https://github.com/QinIndexCode/expo-liteDataStore/issues)
 - 📖 **文档**: [完整文档](https://github.com/QinIndexCode/expo-liteDataStore/wiki)
 

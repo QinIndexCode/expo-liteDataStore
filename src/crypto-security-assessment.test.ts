@@ -9,12 +9,12 @@
  * 3. 自动生成结构化安全与性能报告（可直接提交合规审查）
  *
  * 适用环境：Expo / React Native + Jest
- * 作者：你的团队
+ * 作者：QinIndex
  * 日期：2025-12-03
  */
 
 import { encrypt, decrypt, encryptBulk, decryptBulk, encryptFields, decryptFields, getMasterKey } from './utils/crypto';
-import config from './liteStore.config.js';
+import config from './liteStore.config';
 
 // ==================== 测试配置（平衡精度与执行时间）===================
 const TEST_CONFIG = {

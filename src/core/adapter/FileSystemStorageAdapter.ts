@@ -332,6 +332,9 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
 
       // 优化：使用Map提高查找性能，减少O(n)查找操作
       const dataMap = new Map<string | number, Record<string, any>>();
+      
+      // 保存没有id的数据（包括原有数据和新插入的数据）
+      let itemsWithoutId = finalData.filter((item: Record<string, any>) => item['id'] === undefined);
 
       // 将现有数据转换为Map，提高查找效率
       finalData.forEach((item: Record<string, any>) => {
@@ -349,6 +352,9 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
             items.forEach((item: Record<string, any>) => {
               if (item['id'] !== undefined) {
                 dataMap.set(item.id, item);
+              } else {
+                // 处理没有id的插入项
+                itemsWithoutId.push(item);
               }
               writtenCount++;
             });
@@ -377,15 +383,16 @@ export class FileSystemStorageAdapter implements IStorageAdapter {
 
       // 将Map转换回数组，合并有id和无id的数据
       const mapData = Array.from(dataMap.values());
-      // 保留没有id的数据
-      const itemsWithoutId = finalData.filter((item: Record<string, any>) => item['id'] === undefined);
 
       // 更新finalData，准备处理下一批次
       finalData = [...mapData, ...itemsWithoutId];
     }
 
     // 写入更新后的数据
-    const result = await this.write(tableName, finalData, { mode: 'overwrite' });
+    const result = await this.dataWriter.write(tableName, finalData, { mode: 'overwrite' });
+
+    // 清除该表的缓存
+    this.cacheService.clearTableCache(tableName);
 
     // 记录性能指标
     performanceMonitor.record({

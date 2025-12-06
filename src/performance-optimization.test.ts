@@ -2,7 +2,7 @@
  * 性能优化验证测试
  */
 import { EncryptedStorageAdapter } from './core/EncryptedStorageAdapter';
-import config from './liteStore.config.js';
+import config from './liteStore.config';
 
 describe('Performance Optimization Tests', () => {
   let adapter: EncryptedStorageAdapter;
