@@ -1,9 +1,13 @@
 // src/index.ts
 // 主要API
 import { db, plainStorage } from './core/db';
+import { setConfig, getConfig, resetConfig } from './liteStore.config';
 
 // 导出db和plainStorage
 export { db, plainStorage };
+
+// 配置相关方法
+export { setConfig, getConfig, resetConfig };
 
 // 表管理
 export const createTable = db.createTable.bind(db);
@@ -152,6 +156,10 @@ export default {
   migrateToChunked,
   clearTable,
   update,
+  // 配置相关方法
+  setConfig,
+  getConfig,
+  resetConfig,
   // 自动同步相关方法
   getSyncStats,
   syncNow,

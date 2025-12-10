@@ -5,7 +5,7 @@
   "types": "dist/types/index.d.ts",
   "author": "QinIndexCode",
   "license": "MIT",
-  "description": "A lite data store for Expo; \n Detail in https://github.com/QinIndexCode/expo-lite-data-store",
+  "description": "A lite data store for Expo; \n Detail in https://github.com/QinIndexCode/expo-lite-data-store please don't use 1.0.0 version because it's not stable. In this version , fix crypto compatibility issue. ",
   "keywords": [
     "expo",
     "data store",
@@ -60,7 +60,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/crypto-js": "^4.2.2",
     "bcryptjs": "^3.0.3",
-    "crypto-js": "^4.2.0",
+    "crypto-es": "^3.1.2",
     "expo": "~54.0.23",
     "expo-crypto": "~15.0.7",
     "expo-file-system": "~18.0.7",

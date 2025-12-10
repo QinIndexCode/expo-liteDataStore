@@ -4,7 +4,16 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   // 彻底忽略所有不该检查的文件
   {
-    ignores: ['dist/**', '**/*.d.ts', '**/*.test.ts', '**/*.test.tsx', '**/*.js', '__mocks__/**', 'jest.*.js'],
+    ignores: [
+      'dist/**',
+      '**/*.d.ts',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.js',
+      '__mocks__/**',
+      'jest.*.js',
+      'liteStore.config.ts',
+    ],
   },
 
   // 只检查真正的源码

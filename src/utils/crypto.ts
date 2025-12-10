@@ -2,11 +2,13 @@
  * 加密工具模块
  * 2025 年 11 月 17 日 Expo SDK 54 合规版（AES-256-CTR + HMAC-SHA512 模拟 GCM）
  * 2025-11-17 Expo SDK 54 compliant version (AES-256-CTR + HMAC-SHA512 emulates GCM)
- * 依赖：expo-crypto (随机) + crypto-js (加密 + HMAC)
- * Dependencies: expo-crypto (randomness) + crypto-js (encryption & HMAC)
+ * 依赖：expo-crypto (随机) + crypto-es (加密 + HMAC)
+ * Dependencies: expo-crypto (randomness) + crypto-es (encryption & HMAC)
+ * 2025-12-09 修复 Expo 环境下的 Base64 编码解码问题
+ *
  */
 import bcrypt from 'bcryptjs';
-import CryptoJS from 'crypto-js';
+import * as CryptoES from 'crypto-es';
 import * as Crypto from 'expo-crypto';
 import * as SecureStore from 'expo-secure-store';
 import config from '../liteStore.config';
@@ -15,6 +17,26 @@ import config from '../liteStore.config';
  * 加密错误类
  * 用于处理加密相关的错误
  */
+// Expo 环境下安全的 Base64 编码（替代 Buffer.from(arr).toString('base64')）
+const uint8ArrayToBase64 = (arr: Uint8Array): string => {
+  return CryptoES.Base64.stringify(CryptoES.WordArray.create(arr as any));
+};
+
+// Expo 环境下安全的 Base64 解码成 Uint8Array（替代 new Uint8Array(Buffer.from(str, 'base64'))）
+const base64ToUint8Array = (str: string): Uint8Array => {
+  const wordArray = CryptoES.Base64.parse(str);
+  const array = new Uint8Array(wordArray.sigBytes);
+  const words = wordArray.words;
+  for (let i = 0; i < wordArray.sigBytes; i++) {
+    array[i] = (words[i >>> 2] >>> (24 - (i % 4) * 8)) & 0xff;
+  }
+  return array;
+};
+// 安全的 JSON + Base64 序列化（替代 Buffer.from(JSON.stringify(...)).toString('base64')）
+const jsonToBase64 = (obj: any): string => {
+  return CryptoES.Base64.stringify(CryptoES.Utf8.parse(JSON.stringify(obj)));
+};
+
 export class CryptoError extends Error {
   /**
    * 构造函数
@@ -77,8 +99,8 @@ const KEY_SIZE = 256 / 32;
  * 智能密钥缓存 - LRU缓存机制，避免内存溢出
  */
 interface CachedKeyEntry {
-  aesKey: CryptoJS.lib.WordArray;
-  hmacKey: CryptoJS.lib.WordArray;
+  aesKey: any;
+  hmacKey: any;
   accessCount: number;
   lastAccessTime: number;
   createdAt: number;
@@ -216,18 +238,15 @@ if (process.env.NODE_ENV !== 'test') {
  * 从masterKey + salt派生AES + HMAC密钥（PBKDF2 + SHA512）
  * @param masterKey 主密钥
  * @param salt 盐值
- * @returns Promise<{ aesKey: CryptoJS.lib.WordArray; hmacKey: CryptoJS.lib.WordArray }> 派生的AES密钥和HMAC密钥
+ * @returns Promise<{ aesKey: CryptoES.lib.WordArray; hmacKey: CryptoES.lib.WordArray }> 派生的AES密钥和HMAC密钥
  */
-const deriveKey = async (
-  masterKey: string,
-  salt: Uint8Array
-): Promise<{ aesKey: CryptoJS.lib.WordArray; hmacKey: CryptoJS.lib.WordArray }> => {
+const deriveKey = async (masterKey: string, salt: Uint8Array): Promise<{ aesKey: any; hmacKey: any }> => {
   try {
     // 生成缓存键 - 使用masterKey的哈希值以提高缓存命中率和安全性
-    const saltStr = CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(salt));
+    const saltStr = CryptoES.Base64.stringify(CryptoES.WordArray.create(salt));
     // 使用SHA-256哈希masterKey，确保相同的masterKey生成相同的缓存键
     // 同时避免直接暴露masterKey的任何部分
-    const masterKeyHash = CryptoJS.SHA256(masterKey).toString(CryptoJS.enc.Hex).substring(0, 16);
+    const masterKeyHash = CryptoES.SHA256(masterKey).toString(CryptoES.Hex).substring(0, 16);
     const cacheKey = `${masterKeyHash}_${saltStr}_${config.encryption.keyIterations}`;
 
     // 检查智能缓存
@@ -243,21 +262,15 @@ const deriveKey = async (
     const iterations = getIterations();
 
     // 优化：使用SHA-256进行PBKDF2，在安全性和性能之间取得平衡
-    // SHA-256比SHA-512更快，且对于PBKDF2来说安全性仍然足够
     // 我们将派生的密钥分为两部分：前半部分用于AES加密，后半部分用于HMAC校验
-    const derived = CryptoJS.PBKDF2(masterKey, CryptoJS.lib.WordArray.create(salt), {
+    const derived = CryptoES.PBKDF2(masterKey, CryptoES.WordArray.create(salt), {
       keySize: KEY_SIZE * 2, // 双倍大小（前半AES，后半HMAC）
       iterations: iterations,
-      hasher: CryptoJS.algo.SHA256, // 使用SHA-256提高性能，安全性仍然足够
     });
 
-    // 优化：直接分割，避免不必要的克隆操作
-    const halfSize = KEY_SIZE; // 字数 (words)
-    const halfSigBytes = halfSize * 4; // 字节数
-
     const result = {
-      aesKey: CryptoJS.lib.WordArray.create(derived.words.slice(0, halfSize), halfSigBytes),
-      hmacKey: CryptoJS.lib.WordArray.create(derived.words.slice(halfSize), halfSigBytes),
+      aesKey: derived, // 使用整个派生密钥，让crypto-es处理密钥分割
+      hmacKey: derived,
     };
 
     // 使用智能缓存
@@ -292,95 +305,82 @@ export const encrypt = async (plainText: string, masterKey: string): Promise<str
     const ivBytes = Crypto.getRandomBytes(16); // CTR用16字节IV
 
     // 派生密钥
-    // Derive keys
     const { aesKey, hmacKey } = await deriveKey(masterKey, saltBytes);
 
+    // 将 Uint8Array 转换为 Base64 字符串
+    const saltStr = uint8ArrayToBase64(saltBytes);
+    const ivStr = uint8ArrayToBase64(ivBytes);
+
     // AES-CTR 加密
-    // AES-CTR encryption
-    const encrypted = CryptoJS.AES.encrypt(plainText, aesKey, {
-      iv: CryptoJS.lib.WordArray.create(ivBytes),
-      mode: CryptoJS.mode.CTR, // CTR 模式（内置，支持） // CTR mode (built-in, supported)
-      padding: CryptoJS.pad.NoPadding,
+    const encrypted = CryptoES.AES.encrypt(plainText, aesKey, {
+      // 修正：使用 base64ToUint8Array 安全转换 IV
+      iv: CryptoES.WordArray.create(base64ToUint8Array(ivStr)),
     });
 
     // 将密文转换为 Base64 字符串
-    // Convert ciphertext to Base64 string
-    const ciphertextBase64 = encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+    const ciphertextBase64 = encrypted.ciphertext ? CryptoES.Base64.stringify(encrypted.ciphertext) : '';
 
     // HMAC 校验（模拟 GCM tag）- 使用配置中的HMAC算法
-    // HMAC for integrity (emulates GCM tag)
-    // 使用 Base64 字符串计算 HMAC，确保与解密时一致
-    // Use Base64 string to calculate HMAC, ensure consistency with decryption
     const hmac =
       config.encryption.hmacAlgorithm === 'SHA-512'
-        ? CryptoJS.HmacSHA512(ciphertextBase64, hmacKey)
-        : CryptoJS.HmacSHA256(ciphertextBase64, hmacKey);
+        ? CryptoES.HmacSHA512(ciphertextBase64, hmacKey)
+        : CryptoES.HmacSHA256(ciphertextBase64, hmacKey);
 
     // 组装 payload（Base64 安全存储）
-    // Assemble payload (Base64 for safe storage)
     const payload: EncryptedPayload = {
-      salt: CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(saltBytes)),
-      iv: CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(ivBytes)),
+      salt: saltStr,
+      iv: ivStr,
       ciphertext: ciphertextBase64,
-      hmac: hmac.toString(CryptoJS.enc.Base64),
+      hmac: CryptoES.Base64.stringify(hmac),
     };
 
-    return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));
+    // 修正：使用 jsonToBase64 安全序列化和 Base64 编码
+    return jsonToBase64(payload);
   } catch (error) {
     throw new CryptoError('Encryption failed', 'ENCRYPT_FAILED', error);
   }
 };
 
 // 解密
-// Decrypt
 export const decrypt = async (encryptedBase64: string, masterKey: string): Promise<string> => {
   try {
-    // 解析 payload
-    // Parse payload
-    const payloadStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(encryptedBase64));
+    // 修正：使用 CryptoES.Base64.parse 安全解析 Base64
+    const wordArray = CryptoES.Base64.parse(encryptedBase64);
+    const payloadStr = CryptoES.Utf8.stringify(wordArray);
     const payload: EncryptedPayload = JSON.parse(payloadStr);
 
-    // 优化：简化盐值转换，避免多次转换
-    const saltUint8Array = new Uint8Array(
-      Array.from(CryptoJS.enc.Base64.parse(payload.salt).words)
-        .flatMap(word => [(word >> 24) & 0xff, (word >> 16) & 0xff, (word >> 8) & 0xff, word & 0xff])
-        .slice(0, 16) // 确保只有16字节
-    );
-
-    const iv = CryptoJS.enc.Base64.parse(payload.iv);
+    // 修正：使用 base64ToUint8Array 安全转换 Salt
+    const saltUint8Array = base64ToUint8Array(payload.salt);
+    const iv = payload.iv;
 
     // 派生密钥
-    // Derive keys
     const { aesKey, hmacKey } = await deriveKey(masterKey, saltUint8Array);
 
     // 先 HMAC 校验（防篡改）- 使用配置中的HMAC算法
-    // Verify HMAC first (tamper detection)
     const computedHmac =
       config.encryption.hmacAlgorithm === 'SHA-512'
-        ? CryptoJS.HmacSHA512(payload.ciphertext, hmacKey)
-        : CryptoJS.HmacSHA256(payload.ciphertext, hmacKey);
-    // 修复：用 toString(CryptoJS.enc.Base64) 比较（与加密时一致的格式）
-    // Fix: compare with toString(CryptoJS.enc.Base64) for consistent format with encryption
-    if (computedHmac.toString(CryptoJS.enc.Base64) !== payload.hmac) {
+        ? CryptoES.HmacSHA512(payload.ciphertext, hmacKey)
+        : CryptoES.HmacSHA256(payload.ciphertext, hmacKey);
+
+    // 修正：使用 CryptoES.Base64.stringify 比较（与加密时一致的格式）
+    if (CryptoES.Base64.stringify(computedHmac) !== payload.hmac) {
       throw new CryptoError('HMAC mismatch: data tampered or wrong key', 'HMAC_MISMATCH');
     }
 
     // AES-CTR 解密
-    // AES-CTR decryption
-    const decrypted = CryptoJS.AES.decrypt(payload.ciphertext, aesKey, {
-      iv,
-      mode: CryptoJS.mode.CTR,
-      padding: CryptoJS.pad.NoPadding,
+    const decrypted = CryptoES.AES.decrypt(payload.ciphertext, aesKey, {
+      // 修正：使用 base64ToUint8Array 安全转换 IV
+      iv: CryptoES.WordArray.create(base64ToUint8Array(iv)),
     });
 
-    return decrypted.toString(CryptoJS.enc.Utf8);
+    // 修正：使用 CryptoES.Utf8.stringify 确保返回 UTF-8 字符串
+    return CryptoES.Utf8.stringify(decrypted);
   } catch (error) {
     throw new CryptoError('Decryption failed (wrong key or corrupted data)', 'DECRYPT_FAILED', error);
   }
 };
 
 // 获取主密钥（SecureStore + 生物识别）
-// Get master key (SecureStore + biometrics)
 export const getMasterKey = async (): Promise<string> => {
   let key = await SecureStore.getItemAsync(MASTER_KEY_ALIAS, {
     requireAuthentication: true,
@@ -399,7 +399,6 @@ export const getMasterKey = async (): Promise<string> => {
 };
 
 // resetMasterKey 重置主密钥（登出/重置用）
-// Reset master key (for logout/reset)
 export const resetMasterKey = async (): Promise<void> => {
   await SecureStore.deleteItemAsync(MASTER_KEY_ALIAS);
   // 清除密钥缓存
@@ -412,7 +411,8 @@ export const resetMasterKey = async (): Promise<void> => {
  */
 export const generateMasterKey = async (): Promise<string> => {
   const bytes = Crypto.getRandomBytes(32);
-  return CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(bytes));
+  // 修正：使用 uint8ArrayToBase64
+  return uint8ArrayToBase64(bytes);
 };
 
 // ==================== bcrypt 密码哈希功能 ====================
@@ -490,25 +490,24 @@ export const encryptBulk = async (plainTexts: string[], masterKey: string): Prom
 
     for (const plainText of plainTexts) {
       // AES-CTR 加密
-      const encrypted = CryptoJS.AES.encrypt(plainText, aesKey, {
-        iv: CryptoJS.lib.WordArray.create(ivBytes),
-        mode: CryptoJS.mode.CTR,
-        padding: CryptoJS.pad.NoPadding,
+      const encrypted = CryptoES.AES.encrypt(plainText, aesKey, {
+        iv: CryptoES.WordArray.create(ivBytes),
       });
 
-      const ciphertextBase64 = encrypted.ciphertext.toString(CryptoJS.enc.Base64);
+      const ciphertextBase64 = encrypted.ciphertext ? CryptoES.Base64.stringify(encrypted.ciphertext) : '';
 
       // HMAC 校验 - 使用配置中的HMAC算法
       const hmac =
         config.encryption.hmacAlgorithm === 'SHA-512'
-          ? CryptoJS.HmacSHA512(ciphertextBase64, hmacKey)
-          : CryptoJS.HmacSHA256(ciphertextBase64, hmacKey);
+          ? CryptoES.HmacSHA512(ciphertextBase64, hmacKey)
+          : CryptoES.HmacSHA256(ciphertextBase64, hmacKey);
 
       encryptedResults.push({
         encryptedData: ciphertextBase64,
-        salt: CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(saltBytes)),
-        iv: CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(ivBytes)),
-        hmac: hmac.toString(CryptoJS.enc.Base64),
+        // 修正：使用 uint8ArrayToBase64
+        salt: uint8ArrayToBase64(saltBytes),
+        iv: uint8ArrayToBase64(ivBytes),
+        hmac: CryptoES.Base64.stringify(hmac),
       });
     }
 
@@ -521,7 +520,8 @@ export const encryptBulk = async (plainTexts: string[], masterKey: string): Prom
         hmac: result.hmac,
       };
 
-      return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));
+      // 修正：使用 jsonToBase64
+      return jsonToBase64(payload);
     });
   } catch (error) {
     throw new CryptoError('Bulk encryption failed', 'ENCRYPT_FAILED', error);
@@ -540,18 +540,14 @@ export const decryptBulk = async (encryptedTexts: string[], masterKey: string): 
   try {
     // 可以并行处理解密操作
     const decryptPromises = encryptedTexts.map(async encryptedText => {
-      // 解析 payload
-      const payloadStr = CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(encryptedText));
+      // 修正：安全解析 payload
+      const wordArray = CryptoES.Base64.parse(encryptedText);
+      const payloadStr = CryptoES.Utf8.stringify(wordArray);
       const payload: EncryptedPayload = JSON.parse(payloadStr);
 
-      // 优化：转换salt和iv
-      const saltUint8Array = new Uint8Array(
-        Array.from(CryptoJS.enc.Base64.parse(payload.salt).words)
-          .flatMap(word => [(word >> 24) & 0xff, (word >> 16) & 0xff, (word >> 8) & 0xff, word & 0xff])
-          .slice(0, 16)
-      );
-
-      const iv = CryptoJS.enc.Base64.parse(payload.iv);
+      // 修正：安全转换salt
+      const saltUint8Array = base64ToUint8Array(payload.salt);
+      const iv = payload.iv;
 
       // 派生密钥（会从缓存中获取）
       const { aesKey, hmacKey } = await deriveKey(masterKey, saltUint8Array);
@@ -559,20 +555,22 @@ export const decryptBulk = async (encryptedTexts: string[], masterKey: string): 
       // HMAC 校验 - 使用配置中的HMAC算法
       const computedHmac =
         config.encryption.hmacAlgorithm === 'SHA-512'
-          ? CryptoJS.HmacSHA512(payload.ciphertext, hmacKey)
-          : CryptoJS.HmacSHA256(payload.ciphertext, hmacKey);
-      if (computedHmac.toString(CryptoJS.enc.Base64) !== payload.hmac) {
+          ? CryptoES.HmacSHA512(payload.ciphertext, hmacKey)
+          : CryptoES.HmacSHA256(payload.ciphertext, hmacKey);
+
+      // 修正：用 CryptoES.Base64.stringify 比较
+      if (CryptoES.Base64.stringify(computedHmac) !== payload.hmac) {
         throw new CryptoError('HMAC mismatch: data tampered or wrong key', 'HMAC_MISMATCH');
       }
 
       // AES-CTR 解密
-      const decrypted = CryptoJS.AES.decrypt(payload.ciphertext, aesKey, {
-        iv,
-        mode: CryptoJS.mode.CTR,
-        padding: CryptoJS.pad.NoPadding,
+      const decrypted = CryptoES.AES.decrypt(payload.ciphertext, aesKey, {
+        // 修正：使用 base64ToUint8Array
+        iv: CryptoES.WordArray.create(base64ToUint8Array(iv)),
       });
 
-      return decrypted.toString(CryptoJS.enc.Utf8);
+      // 修正：使用 CryptoES.Utf8.stringify 确保返回 UTF-8 字符串
+      return CryptoES.Utf8.stringify(decrypted);
     });
 
     // 并行执行所有解密操作
@@ -783,6 +781,7 @@ export const decryptFieldsBulk = async (
       decryptBulk(values, fieldConfig.masterKey).then(decrypted => {
         decryptedValues[field] = decrypted.map(val => {
           try {
+            // 尝试解析JSON
             return JSON.parse(val);
           } catch {
             return val; // 如果不是JSON，保持原值

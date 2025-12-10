@@ -1,17 +1,28 @@
 /**
  * LiteStore 配置文件
- * 支持自动合并用户配置和默认配置
+ * 用于自定义 LiteStore 的行为
+ * 
+ * 如何使用：
+ * 1. 在应用入口文件中导入此配置
+ * 2. 使用 setConfig 方法将配置应用到 LiteStore
+ * 
+ * 示例：
+ * import { setConfig } from 'expo-lite-data-store';
+ * import liteStoreConfig from './liteStore.config';
+ * 
+ * // 在应用启动时设置配置
+ * setConfig(liteStoreConfig);
  */
-import { LiteStoreConfig } from './types/config';
+import { LiteStoreConfig } from './node_modules/expo-lite-data-store/dist/types/types/config';
 
-// 默认配置
-const defaultConfig: LiteStoreConfig = {
+const config: LiteStoreConfig = {
   // 基础配置
   chunkSize: 5 * 1024 * 1024, // 5MB - 分片大小
   storageFolder: 'expo-litedatastore',
   sortMethods: 'default', // fast, counting, merge, slow
   timeout: 10000, // 10s
 
+  // ==================== 加密配置（完整版） ====================
   encryption: {
     // --- 核心加密参数（新增，强烈推荐显式声明）---
     algorithm: 'AES-CTR', // 明确声明使用 CTR 模式（支持并行，适合移动端）
@@ -90,71 +101,4 @@ const defaultConfig: LiteStoreConfig = {
   },
 };
 
-// 深度合并函数
-function deepMerge<T>(target: T, source: Partial<T>): T {
-  const output = { ...target };
-
-  if (typeof target === 'object' && typeof source === 'object') {
-    for (const key in source) {
-      if (source.hasOwnProperty(key)) {
-        const targetValue = (target as any)[key];
-        const sourceValue = (source as any)[key];
-
-        if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
-          (output as any)[key] = [...targetValue, ...sourceValue];
-        } else if (
-          typeof targetValue === 'object' &&
-          typeof sourceValue === 'object' &&
-          targetValue !== null &&
-          sourceValue !== null
-        ) {
-          (output as any)[key] = deepMerge(targetValue, sourceValue);
-        } else {
-          (output as any)[key] = sourceValue;
-        }
-      }
-    }
-  }
-
-  return output;
-}
-
-// 配置存储，用于保存用户修改后的配置
-let userModifiedConfig: Partial<LiteStoreConfig> = {};
-
-// 合并配置
-const config: LiteStoreConfig = deepMerge(defaultConfig, userModifiedConfig);
-
-/**
- * 设置配置
- * 允许用户在运行时修改配置
- * @param newConfig 新的配置对象
- */
-export function setConfig(newConfig: Partial<LiteStoreConfig>): void {
-  userModifiedConfig = deepMerge(userModifiedConfig, newConfig);
-  // 更新配置对象
-  Object.assign(config, deepMerge(defaultConfig, userModifiedConfig));
-  console.log('✅ 配置已更新:', JSON.stringify(newConfig, null, 2));
-}
-
-/**
- * 获取当前配置
- * @returns LiteStoreConfig 当前配置对象
- */
-export function getConfig(): LiteStoreConfig {
-  return config;
-}
-
-/**
- * 重置配置为默认值
- */
-export function resetConfig(): void {
-  userModifiedConfig = {};
-  // 更新配置对象
-  Object.assign(config, defaultConfig);
-  console.log('✅ 配置已重置为默认值');
-}
-
 export default config;
-
-export { defaultConfig };
