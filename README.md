@@ -12,6 +12,7 @@ English: [English Document](./README_EN.md)
 [![GitHub license](https://img.shields.io/github/license/QinIndexCode/expo-lite-data-store)](https://github.com/QinIndexCode/expo-lite-data-store/blob/main/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue.svg)](https://www.typescriptlang.org/)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81+-blue.svg)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-51.0+-blue.svg)](https://expo.dev/)
 
 **超轻量、零配置、纯 TypeScript 编写的 Expo 本地数据库**
 
