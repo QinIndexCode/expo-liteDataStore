@@ -32,7 +32,7 @@ English: [English Document](README_EN.md)
 
 ```bash
 npm install expo-lite-data-store
-# 或使用 yarn / pnpm
+# 或使用 yarn / pnpm ( 目前只上传了npm,后续将会跟进yarn , pnpm)
 yarn add expo-lite-data-store
 pnpm add expo-lite-data-store
 ```

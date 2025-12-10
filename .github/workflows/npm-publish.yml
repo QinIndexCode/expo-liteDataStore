@@ -1,0 +1,41 @@
+name: Publish to npm
+
+on:
+  push:
+    tags:
+      - "v*.*.*"           
+      - "v*.*.*-*"       
+
+jobs:
+  test-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write                  
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0              
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20             
+          cache: npm                   
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests（你现在测试很慢就先跳过也行）
+        run: npm run test:all
+
+      - name: Build
+        run: npm run build:all
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}   # 注意这里是 NPM_TOKEN，不是 npm_token
