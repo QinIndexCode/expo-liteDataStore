@@ -8,6 +8,7 @@ English: [English Document](./README_EN.md)
 **注意** 当前项目测试覆盖范围有限，可能存在未发现的问题。在生产环境中使用前，请务必进行充分测试。
 
 ---
+
 [![npm version](https://img.shields.io/npm/v/expo-lite-data-store?color=%23ff5555)](https://www.npmjs.com/package/expo-lite-data-store)
 [![GitHub license](https://img.shields.io/github/license/QinIndexCode/expo-lite-data-store)](https://github.com/QinIndexCode/expo-lite-data-store/blob/main/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9+-blue.svg)](https://www.typescriptlang.org/)
@@ -40,7 +41,6 @@ npm install expo-lite-data-store
 yarn add expo-lite-data-store
 pnpm add expo-lite-data-store
 ```
-
 
 ## 🚀 快速开始
 

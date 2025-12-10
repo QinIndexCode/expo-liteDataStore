@@ -38,7 +38,6 @@ yarn add expo-lite-data-store
 pnpm add expo-lite-data-store
 ```
 
-
 ## 🚀 Quick Start
 
 ### TypeScript Version (Recommended)
