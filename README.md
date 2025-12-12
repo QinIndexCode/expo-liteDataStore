@@ -1,6 +1,6 @@
 # expo-lite-store
 
-中文版: [中文文档](./README.md)
+中文版: [中文文档](./README.md) |
 English: [English Document](./README_EN.md)
 
 ---
