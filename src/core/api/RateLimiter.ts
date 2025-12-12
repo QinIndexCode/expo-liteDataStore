@@ -1,5 +1,7 @@
 // src/core/api/RateLimiter.ts
 // API限流机制，基于令牌桶算法
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import { RATE_LIMIT } from '../constants';
 import config from '../../liteStore.config';

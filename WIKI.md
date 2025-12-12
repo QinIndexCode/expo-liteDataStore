@@ -1,5 +1,134 @@
 # expo-lite-data-store 详细文档
 
+## 🎯 完整配置说明
+
+### 配置概述
+
+LiteStore 提供了丰富的配置选项，允许您根据项目需求调整性能、安全性和行为。配置可以通过 `setConfig()` 函数在运行时动态修改，也可以通过配置文件进行设置。
+
+### 配置管理 API
+
+```typescript
+import { setConfig, getConfig, resetConfig } from 'expo-lite-data-store';
+
+// 设置配置
+setConfig({
+  chunkSize: 10 * 1024 * 1024, // 10MB
+  encryption: {
+    enabled: true,
+    keySize: 256,
+  },
+});
+
+// 获取当前配置
+const currentConfig = getConfig();
+console.log(currentConfig);
+
+// 重置配置为默认值
+resetConfig();
+```
+
+### 基础配置
+
+| 配置项          | 类型     | 默认值                  | 说明                                                                 |
+| --------------- | -------- | ----------------------- | -------------------------------------------------------------------- |
+| `chunkSize`     | `number` | `5 * 1024 * 1024` (5MB) | 数据文件分片大小，超过此大小的文件将被自动分片                       |
+| `storageFolder` | `string` | `'expo-litedatastore'`  | 数据存储目录名称                                                     |
+| `sortMethods`   | `string` | `'default'`             | 默认排序算法，可选值：`default`, `fast`, `counting`, `merge`, `slow` |
+| `timeout`       | `number` | `10000` (10秒)          | 操作超时时间                                                         |
+
+### 加密配置
+
+| 配置项                       | 类型       | 默认值           | 说明                                         |
+| ---------------------------- | ---------- | ---------------- | -------------------------------------------- |
+| `algorithm`                  | `string`   | `'AES-CTR'`      | 加密算法，支持 `AES-CTR`                     |
+| `keySize`                    | `number`   | `256`            | 加密密钥长度，支持 `128`, `192`, `256`       |
+| `hmacAlgorithm`              | `string`   | `'SHA-512'`      | HMAC 完整性保护算法                          |
+| `keyIterations`              | `number`   | `120000`         | 密钥派生迭代次数，值越高安全性越强但性能越低 |
+| `enableFieldLevelEncryption` | `boolean`  | `false`          | 是否启用字段级加密                           |
+| `encryptedFields`            | `string[]` | 常见敏感字段列表 | 默认加密的字段列表                           |
+| `cacheTimeout`               | `number`   | `30000` (30秒)   | 内存中 masterKey 的缓存超时时间              |
+| `maxCacheSize`               | `number`   | `50`             | LRU 缓存最多保留的派生密钥数量               |
+| `useBulkOperations`          | `boolean`  | `true`           | 是否启用批量操作优化                         |
+
+### 性能配置
+
+| 配置项                    | 类型      | 默认值 | 说明                              |
+| ------------------------- | --------- | ------ | --------------------------------- |
+| `enableQueryOptimization` | `boolean` | `true` | 是否启用查询优化（索引）          |
+| `maxConcurrentOperations` | `number`  | `5`    | 最大并发操作数                    |
+| `enableBatchOptimization` | `boolean` | `true` | 是否启用批量操作优化              |
+| `memoryWarningThreshold`  | `number`  | `0.8`  | 内存使用触发警告的阈值（0-1之间） |
+
+### 缓存配置
+
+| 配置项                   | 类型      | 默认值            | 说明                       |
+| ------------------------ | --------- | ----------------- | -------------------------- |
+| `maxSize`                | `number`  | `1000`            | 缓存最大条目数             |
+| `defaultExpiry`          | `number`  | `3600000` (1小时) | 缓存默认过期时间           |
+| `enableCompression`      | `boolean` | `false`           | 是否启用缓存数据压缩       |
+| `cleanupInterval`        | `number`  | `300000` (5分钟)  | 缓存清理间隔               |
+| `memoryWarningThreshold` | `number`  | `0.8`             | 缓存内存使用触发警告的阈值 |
+| `autoSync.enabled`       | `boolean` | `true`            | 是否启用自动同步           |
+| `autoSync.interval`      | `number`  | `5000` (5秒)      | 自动同步间隔               |
+| `autoSync.minItems`      | `number`  | `1`               | 触发同步的最小脏项数量     |
+| `autoSync.batchSize`     | `number`  | `100`             | 每次同步的最大项目数       |
+
+### API配置
+
+| 配置项                        | 类型      | 默认值 | 说明                  |
+| ----------------------------- | --------- | ------ | --------------------- |
+| `rateLimit.enabled`           | `boolean` | `true` | 是否启用 API 速率限制 |
+| `rateLimit.requestsPerSecond` | `number`  | `20`   | 每秒最大请求数        |
+| `rateLimit.burstCapacity`     | `number`  | `40`   | 突发请求容量          |
+| `retry.maxAttempts`           | `number`  | `3`    | 最大重试次数          |
+| `retry.backoffMultiplier`     | `number`  | `2`    | 重试退避乘数          |
+
+### 监控配置
+
+| 配置项                      | 类型      | 默认值              | 说明             |
+| --------------------------- | --------- | ------------------- | ---------------- |
+| `enablePerformanceTracking` | `boolean` | `true`              | 是否启用性能跟踪 |
+| `enableHealthChecks`        | `boolean` | `true`              | 是否启用健康检查 |
+| `metricsRetention`          | `number`  | `86400000` (24小时) | 性能指标保留时间 |
+
+### 配置最佳实践
+
+1. **性能优化**：
+
+   ```typescript
+   setConfig({
+     performance: {
+       enableQueryOptimization: true,
+       maxConcurrentOperations: 8, // 根据设备性能调整
+       enableBatchOptimization: true,
+     },
+   });
+   ```
+
+2. **安全性增强**：
+
+   ```typescript
+   setConfig({
+     encryption: {
+       keyIterations: 200000, // 增加密钥派生迭代次数
+       cacheTimeout: 15000, // 减少密钥缓存时间
+       enableFieldLevelEncryption: true,
+     },
+   });
+   ```
+
+3. **内存优化**：
+   ```typescript
+   setConfig({
+     cache: {
+       maxSize: 500, // 减少缓存大小
+       enableCompression: true, // 启用缓存压缩
+       memoryWarningThreshold: 0.7, // 降低内存警告阈值
+     },
+   });
+   ```
+
 ## 🎯 高级查询
 
 ### 条件查询操作符
@@ -430,9 +559,10 @@ interface WriteResult {
 
 | 导入路径                    | 类型支持      | 适用场景         | 文件来源                                     |
 | --------------------------- | ------------- | ---------------- | -------------------------------------------- |
-| `'expo-lite-data-store'`    | ✅ 自动选择   | 推荐使用（默认） | `dist/js/index.js` + `dist/types/index.d.ts` |
+| `'expo-lite-data-store'`    | ✅ TypeScript | 推荐使用（默认） | `dist/js/index.js` + `dist/types/index.d.ts` |
 | `'expo-lite-data-store/js'` | ✅ TypeScript | JavaScript环境   | `dist/js/index.js` + `dist/types/index.d.ts` |
-| `'expo-lite-data-store/ts'` | ✅ TypeScript | TypeScript环境   | `dist/js/index.js` + `dist/types/index.d.ts` |
+
+> 注：TypeScript支持通过类型定义文件自动提供，所有导入路径都包含完整的类型支持，无需单独选择TypeScript版本。
 
 ## 🎯 打包工具集成
 

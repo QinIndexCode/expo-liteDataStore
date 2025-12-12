@@ -18,16 +18,12 @@
       "types": "./dist/types/index.d.ts",
       "import": "./dist/js/index.js",
       "require": "./dist/js/index.js"
-    },
-    "./ts": {
-      "types": "./dist/types/index.d.ts",
-      "import": "./dist/js/index.js",
-      "require": "./dist/js/index.js"
     }
   },
   "scripts": {
     "build": "npx tsc -p tsconfig.js.json",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "postinstall": "node -e \"try { const { ConfigGenerator } = require('./dist/js/utils/configGenerator'); ConfigGenerator.generateConfig(process.cwd()); } catch(e) { console.log('配置文件生成失败:', e.message); }\""
   },
   "dependencies": {
     "crypto-es": "^3.1.2",

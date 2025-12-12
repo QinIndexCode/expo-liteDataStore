@@ -10,9 +10,9 @@ import {
   decryptFields,
   encryptFieldsBulk,
   decryptFieldsBulk,
-} from './utils/crypto';
-import { getMasterKey } from './utils/crypto';
-import config from './liteStore.config';
+  getMasterKey,
+} from '../../utils/crypto';
+import config from '../../liteStore.config';
 
 // 性能测试开关：始终运行所有测试，不跳过任何测试
 const perfTest = test;

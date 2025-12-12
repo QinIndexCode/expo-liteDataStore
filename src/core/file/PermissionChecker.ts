@@ -1,4 +1,7 @@
 // src/core/file/PermissionChecker.ts
+// 权限检查器类，用于检查文件系统访问权限
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import * as FileSystem from 'expo-file-system';
 import { EncodingType } from 'expo-file-system';

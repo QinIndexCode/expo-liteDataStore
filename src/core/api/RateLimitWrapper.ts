@@ -1,3 +1,8 @@
+// src/core/api/RateLimitWrapper.ts
+// 限流包装器类，负责API限流逻辑
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import { RATE_LIMIT } from '../constants';
 import { RateLimiter, RateLimitStatus } from './RateLimiter.js';
 

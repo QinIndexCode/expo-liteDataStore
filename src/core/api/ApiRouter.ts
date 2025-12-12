@@ -1,5 +1,12 @@
+// src/core/api/ApiRouter.ts
+// API路由器，负责API版本管理和路由分发
+// 创建于: 2025-12-03
+// 最后修改: 2025-12-11
+
 /**
- * API路由器，负责API版本管理和路由
+ * API路由器类
+ * 负责API版本管理和路由分发
+ * 支持多版本API共存和自动版本回退
  */
 export class ApiRouter {
   /**

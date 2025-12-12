@@ -1,5 +1,7 @@
 // src/core/crypto/KeyManager.ts
 // 密钥管理系统，用于安全存储和管理加密密钥
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import * as SecureStore from 'expo-secure-store';
 import { generateMasterKey } from '../../utils/crypto.js';

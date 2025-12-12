@@ -18,7 +18,7 @@ import {
   remove,
   rollback,
   update,
-} from './expo-lite-data-store';
+} from '../../expo-lite-data-store';
 
 describe('Public API Tests', () => {
   const TEST_TABLE = 'test_api_table';

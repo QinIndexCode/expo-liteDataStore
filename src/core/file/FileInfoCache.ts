@@ -1,4 +1,7 @@
 // src/core/file/FileInfoCache.ts
+// 文件信息缓存类，用于缓存文件信息，减少对文件系统的调用
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import * as FileSystem from 'expo-file-system';
 

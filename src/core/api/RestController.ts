@@ -1,5 +1,7 @@
 // src/core/api/RestController.ts
 // RESTful API控制器，用于优化API设计和批量操作
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import { ApiResponse } from '../../types/apiResponse';
 import type { CreateTableOptions, ReadOptions, WriteOptions, WriteResult } from '../../types/storageTypes';

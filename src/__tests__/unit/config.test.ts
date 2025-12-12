@@ -1,7 +1,7 @@
 /**
  * 配置文件可用性测试
  */
-import config from './liteStore.config';
+import config from '../../liteStore.config';
 
 describe('Configuration Tests', () => {
   test('配置文件应该正确加载', () => {

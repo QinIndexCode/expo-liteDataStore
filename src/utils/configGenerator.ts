@@ -22,7 +22,7 @@ export class ConfigGenerator {
  * // 在应用启动时设置配置
  * setConfig(liteStoreConfig);
  */
-import { LiteStoreConfig } from './node_modules/expo-lite-data-store/dist/types/types/config';
+import { LiteStoreConfig } from 'expo-lite-data-store';
 
 const config: LiteStoreConfig = {
   // 基础配置
@@ -118,7 +118,22 @@ export default config;`;
    * @returns Promise<string> 生成的配置文件路径
    */
   public static async generateConfig(targetPath: string = process.cwd()): Promise<string> {
-    const configPath = path.join(targetPath, 'liteStore.config.ts');
+    // 当从包的postinstall脚本调用时，process.cwd()是包目录，而不是用户项目目录
+    // 所以我们需要检查是否在postinstall上下文中运行
+    const isPostinstall = process.env.npm_lifecycle_event === 'postinstall';
+    let finalTargetPath = targetPath;
+
+    if (isPostinstall) {
+      // 在postinstall上下文中，找到调用者的项目目录
+      // 当使用npm install时，调用者的目录是process.env.INIT_CWD
+      const initCwd = process.env.INIT_CWD;
+      if (initCwd && initCwd !== process.cwd()) {
+        finalTargetPath = initCwd;
+        console.log(`🔍 检测到postinstall上下文，切换目标路径到: ${finalTargetPath}`);
+      }
+    }
+
+    const configPath = path.join(finalTargetPath, 'liteStore.config.ts');
 
     // 检查配置文件是否已存在
     if (fs.existsSync(configPath)) {

@@ -1,13 +1,24 @@
 // src/core/service/FileService.ts
-
+// 文件服务类，负责管理文件操作，包括读写、分块存储等
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 import { FileOperationManager } from '../FileOperationManager';
 import { ChunkedFileHandler } from '../file/ChunkedFileHandler';
 import { SingleFileHandler } from '../file/SingleFileHandler';
 import ROOT from '../../utils/ROOTPath';
 import { MetadataManager } from '../meta/MetadataManager';
+/**
+ * 文件服务类
+ * 负责管理文件操作，包括单文件和分片文件的读写、追加和删除等
+ * 提供统一的文件操作接口，封装了不同存储模式的实现细节
+ */
 export class FileService {
   private fileOperationManager: FileOperationManager;
 
+  /**
+   * 构造函数
+   * @param fileOperationManager 文件操作管理器实例
+   */
   constructor(fileOperationManager: FileOperationManager) {
     this.fileOperationManager = fileOperationManager;
   }

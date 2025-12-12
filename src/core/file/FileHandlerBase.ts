@@ -1,4 +1,8 @@
 // src/core/file/FileHandlerBase.ts
+// 文件处理器抽象基类，包含公共方法
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import * as Crypto from 'expo-crypto';
 import { StorageError } from '../../types/storageErrorInfc';
 

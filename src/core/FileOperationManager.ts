@@ -1,3 +1,8 @@
+// src/core/FileOperationManager.ts
+// 文件操作管理器，负责协调文件系统相关操作，包括单文件和分片文件处理
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import * as FileSystem from 'expo-file-system';
 import ROOT from '../utils/ROOTPath';
 import withTimeout from '../utils/withTimeout';
@@ -7,9 +12,11 @@ import { FileInfoCache } from './file/FileInfoCache';
 import { PermissionChecker } from './file/PermissionChecker';
 import { SingleFileHandler } from './file/SingleFileHandler';
 import { IMetadataManager } from '../types/metadataManagerInfc';
+
 /**
  * 文件操作管理器类
- * 负责协调文件系统相关的操作，委托给具体的实现类
+ * 负责协调文件系统相关的操作，委托给具体的文件处理器实现类
+ * 支持单文件和分片文件两种存储模式，并提供超时保护机制
  */
 export class FileOperationManager {
   /**

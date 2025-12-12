@@ -1,4 +1,7 @@
 // src/core/query/QueryEngine.ts
+// 查询引擎，支持数据过滤、排序、分页和聚合操作
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import type { FilterCondition } from '../../types/storageTypes';
 import {
@@ -10,6 +13,11 @@ import {
 } from '../../utils/sortingTools';
 import { QUERY } from '../constants';
 
+/**
+ * 查询引擎类
+ * 负责数据过滤、排序、分页和聚合操作
+ * 支持多种查询操作符和智能排序算法选择
+ */
 export class QueryEngine {
   /**
    * 过滤数据，支持多种查询操作符

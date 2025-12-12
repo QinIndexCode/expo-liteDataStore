@@ -1,4 +1,7 @@
 // src/core/index/IndexManager.ts
+// 索引管理器，用于管理索引的创建、查询和更新
+// 创建于: 2025-11-23
+// 最后修改: 2025-12-11
 import { IMetadataManager } from '../../types/metadataManagerInfc';
 import { StorageError } from '../../types/storageErrorInfc';
 /**

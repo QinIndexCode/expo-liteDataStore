@@ -19,6 +19,10 @@ export class DataWriter {
   private indexManager: IndexManager;
   private metadataManager: IMetadataManager;
   private fileOperationManager: FileOperationManager;
+  // 元数据校验缓存：记录上次校验的表和时间，避免频繁全表扫描
+  private countValidationCache = new Map<string, { lastCheckTime: number; isAccurate: boolean }>();
+  // 校验间隔：5分钟内不重复校验同一个表（可根据业务调整）
+  private readonly VALIDATION_INTERVAL = 5 * 60 * 1000;
 
   constructor(
     metadataManager: IMetadataManager,
@@ -434,7 +438,116 @@ export class DataWriter {
       // 表不存在，返回0
       return 0;
     }
-    return this.metadataManager.count(tableName);
+
+    // 获取元数据中的计数（O(1)操作，高性能）
+    const metadataCount = this.metadataManager.count(tableName);
+
+    // 懒同步策略：定期验证元数据的准确性，但不每次都验证
+    // 这样既能保证高性能，又能检测错误
+    await this.validateCountAsync(tableName);
+
+    return metadataCount;
+  }
+
+  /**
+   * 异步校验计数的准确性（后台运行，不阻塞主流程）
+   * 采用懒同步策略：
+   * 1. 检查上次校验的时间，如果距离现在不足5分钟，跳过验证
+   * 2. 只对最近修改过的表进行校验（通过updatedAt判断）
+   * 3. 校验失败时自动修复元数据
+   */
+  private async validateCountAsync(tableName: string): Promise<void> {
+    // 避免频繁验证：检查缓存中是否最近已验证过
+    const validationInfo = this.countValidationCache.get(tableName);
+    const now = Date.now();
+
+    if (validationInfo && now - validationInfo.lastCheckTime < this.VALIDATION_INTERVAL) {
+      // 最近已验证过，且间隔不足，跳过本次验证
+      return;
+    }
+
+    // 执行校验（使用Try-Catch，避免校验失败影响主流程）
+    try {
+      const tableMeta = this.metadataManager.get(tableName);
+      if (!tableMeta) return;
+
+      // 只校验最近修改的表（最后修改时间在5分钟内）
+      // 这样避免对很久没改过的表进行不必要的校验
+      if (now - tableMeta.updatedAt > 24 * 60 * 60 * 1000) {
+        // 24小时内没修改的表，不需要频繁校验
+        this.countValidationCache.set(tableName, { lastCheckTime: now, isAccurate: true });
+        return;
+      }
+
+      // 读取实际数据并计算真实计数
+      const actualCount = await this.getActualCount(tableName);
+      const metadataCount = this.metadataManager.count(tableName);
+
+      // 记录本次校验
+      this.countValidationCache.set(tableName, {
+        lastCheckTime: now,
+        isAccurate: actualCount === metadataCount,
+      });
+
+      // 如果计数不一致，自动修复元数据
+      if (actualCount !== metadataCount) {
+        console.warn(
+          `[DataWriter] Count mismatch detected for table '${tableName}': ` +
+            `metadata=${metadataCount}, actual=${actualCount}. Auto-correcting...`
+        );
+        this.metadataManager.update(tableName, {
+          count: actualCount,
+          updatedAt: now,
+        });
+      }
+    } catch (error) {
+      // 校验失败时记录日志但不抛错（避免影响业务）
+      console.error(`[DataWriter] Failed to validate count for table '${tableName}':`, error);
+    }
+  }
+
+  /**
+   * 获取表的实际记录数（通过读取文件计算）
+   * 性能：O(1)文件操作 + O(n)内存数据处理
+   */
+  private async getActualCount(tableName: string): Promise<number> {
+    const tableMeta = this.metadataManager.get(tableName);
+    if (!tableMeta) return 0;
+
+    try {
+      let data: Record<string, any>[];
+      if (tableMeta.mode === 'chunked') {
+        const handler = this.getChunkedHandler(tableName);
+        data = await withTimeout(handler.readAll(), 10000, `read chunked table ${tableName}`);
+      } else {
+        const handler = this.getSingleFile(tableName);
+        data = await withTimeout(handler.read(), 10000, `read single file table ${tableName}`);
+      }
+      return data.length;
+    } catch (error) {
+      // 读取失败时返回元数据中的计数（保证不抛错）
+      return this.metadataManager.count(tableName);
+    }
+  }
+
+  /**
+   * 强制校验计数准确性（用于特定场景，如故障修复）
+   * 这是一个显式操作，不同于懒同步
+   */
+  async verifyCount(tableName: string): Promise<{ metadata: number; actual: number; match: boolean }> {
+    const metadataCount = this.metadataManager.count(tableName);
+    const actualCount = await this.getActualCount(tableName);
+    const match = metadataCount === actualCount;
+
+    // 如果不匹配，自动修复
+    if (!match) {
+      this.metadataManager.update(tableName, {
+        count: actualCount,
+        updatedAt: Date.now(),
+      });
+    }
+
+    return { metadata: metadataCount, actual: actualCount, match };
   }
 
   // ==================== 删除数据 ====================

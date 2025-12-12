@@ -13,6 +13,7 @@ export default tseslint.config(
       '__mocks__/**',
       'jest.*.js',
       'liteStore.config.ts',
+      'test-install/**',
     ],
   },
 

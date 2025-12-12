@@ -1,4 +1,7 @@
 // src/core/file/FileHandlerFactory.ts
+// 文件处理器工厂类，用于创建不同类型的文件处理器
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import { IMetadataManager } from '../../types/metadataManagerInfc';
 import ROOT from '../../utils/ROOTPath';

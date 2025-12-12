@@ -40,11 +40,12 @@ pnpm add expo-lite-data-store
 
 ## 🚀 Quick Start
 
-### TypeScript Version (Recommended)
-
 ```typescript
-// Method 1: Default import (recommended, automatically selects best version)
+// ES module import
 import { createTable, insert, findOne, findMany, update, remove } from 'expo-lite-data-store';
+
+// CommonJS import
+// const { createTable, insert, findOne, findMany, update, remove } = require('expo-lite-data-store');
 
 // Create user table
 await createTable('users');
@@ -71,16 +72,13 @@ await update('users', { age: 26 }, { id: 1 });
 await remove('users', { id: 2 });
 ```
 
-### JavaScript Version
-
 ```javascript
-// CommonJS import
+// JavaScript usage is the same
 const { createTable, insert, findMany } = require('expo-lite-data-store');
 
-// ES6 import
-import { createTable, insert, findMany } from 'expo-lite-data-store';
+// Or use ES module import
+// import { createTable, insert, findMany } from 'expo-lite-data-store';
 
-// Usage is identical to TypeScript version
 await createTable('users');
 
 await insert('users', [
@@ -170,11 +168,10 @@ module.exports = {
 
 ### Q: How to switch between different versions?
 
-A: All versions are sourced from the dist directory, ensuring stability in production environments:
+A: The library automatically provides TypeScript support through type definition files. You can use the same import path for both JavaScript and TypeScript projects:
 
-- `import { ... } from 'expo-lite-data-store'` - Recommended use (auto-select)
-- `import { ... } from 'expo-lite-data-store/js'` - JavaScript environment
-- `import { ... } from 'expo-lite-data-store/ts'` - TypeScript environment
+- `import { ... } from 'expo-lite-data-store'` - Recommended use
+- `import { ... } from 'expo-lite-data-store/js'` - Explicit JavaScript version (same as default)
 
 ### Q: How to handle Chinese sorting?
 

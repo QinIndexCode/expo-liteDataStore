@@ -1,77 +1,78 @@
-// src/types/storage.ts
-//storage types
+// src/types/storageTypes.ts
+// 存储类型定义，包含过滤条件、读写选项和元数据结构
+// 创建于: 2025-11-19
+// 最后修改: 2025-12-11
 
+/**
+ * 过滤条件类型
+ * 支持函数过滤、部分对象匹配和复合条件（AND/OR）
+ */
 export type FilterCondition =
-  | ((item: Record<string, any>) => boolean)
-  | Partial<Record<string, any>>
-  | { $or?: FilterCondition[]; $and?: FilterCondition[] };
+  | ((item: Record<string, any>) => boolean) // 函数过滤条件
+  | Partial<Record<string, any>> // 部分对象匹配
+  | { $or?: FilterCondition[]; $and?: FilterCondition[] }; // 复合条件
 
+/**
+ * 写入结果类型
+ * 包含写入操作的详细信息
+ */
 export type WriteResult = {
-  /**
-   * 写入的字节数/write bytes
-   * @param written written bytes
-   * @returns written bytes
-   */
-  /**
-   * 写入后的总字节数 / total bytes after write
-   * @param totalAfterWrite total bytes after write
-   * @returns total bytes after write
-   * @param chunked whether chunked write
-   * @returns total bytes after write
-   * @param chunks number of chunks (if chunked write)
-   * @returns total bytes after write
-   */
-  written: number; // 写入的字节数/write bytes
-  totalAfterWrite: number; // 写入后的总字节数 / total bytes after write
-  chunked: boolean; // 是否分片写入 / whether chunked write
-  chunks?: number; // 分片数（如果分片写入，则为分片数）/ number of chunks (if chunked write)
+  written: number; // 本次写入的字节数
+  totalAfterWrite: number; // 写入后的总字节数
+  chunked: boolean; // 是否采用分片写入
+  chunks?: number; // 分片数（仅在分片写入时存在）
 };
 
+/**
+ * 读取选项类型
+ * 用于配置数据读取的各种参数
+ */
 export type ReadOptions = {
-  /**
-   * 跳过的记录数 / number of records to skip
-   * @param skip number of records to skip
-   * @param limit number of records to read
-   * @param filter filter condition
-   * @param sortBy sort field(s)
-   * @param order sort order(s)
-   * @param sortAlgorithm sort algorithm to use
-   * @param bypassCache whether to bypass cache
-   */
-  skip?: number; // 跳过的记录数 / number of records to skip
-  limit?: number; // 读取的记录数 / number of records to read
-  filter?: FilterCondition; // 过滤条件 / filter condition
-  sortBy?: string | string[]; // 排序字段 / sort field(s)
-  order?: 'asc' | 'desc' | ('asc' | 'desc')[]; // 排序方向 / sort order(s)
-  sortAlgorithm?: 'default' | 'fast' | 'counting' | 'merge' | 'slow'; // 排序算法 / sort algorithm
-  bypassCache?: boolean; // 是否绕过缓存 / whether to bypass cache
+  skip?: number; // 跳过的记录数
+  limit?: number; // 读取的记录数限制
+  filter?: FilterCondition; // 过滤条件
+  sortBy?: string | string[]; // 排序字段，支持单字段或多字段
+  order?: 'asc' | 'desc' | ('asc' | 'desc')[]; // 排序方向，与sortBy对应
+  sortAlgorithm?: 'default' | 'fast' | 'counting' | 'merge' | 'slow'; // 排序算法
+  bypassCache?: boolean; // 是否绕过缓存，直接从磁盘读取
 };
 
+/**
+ * 创建表选项类型
+ * 用于配置表的创建参数
+ */
 export type CreateTableOptions = {
-  /**
-   * 表名 / table name
-   * @returns table name
-   */
-  columns?: Record<string, string>; // 列定义 / column definitions
-  intermediates?: boolean; // 是否创建中间目录（没有则创建）建议开启 / whether create intermediates directories (if not exist)
-  chunkSize?: number; // 分片大小（如果文件大小超过此值，则采取分片写入）/ chunk size (if file size exceeds this value, chunked write will be used)
+  columns?: Record<string, string>; // 列定义，键为列名，值为数据类型
+  intermediates?: boolean; // 是否自动创建中间目录
+  chunkSize?: number; // 分片大小阈值，超过此值将使用分片写入
 };
 
+/**
+ * 写入选项类型
+ * 用于配置数据写入的各种参数
+ */
 export type WriteOptions = {
-  mode?: 'append' | 'overwrite'; // 写入模式 / write mode
-  forceChunked?: boolean; // 是否强制分片写入（如果文件大小超过分片大小）/ whether force chunked write (if file size exceeds chunk size)
+  mode?: 'append' | 'overwrite'; // 写入模式：追加或覆盖
+  forceChunked?: boolean; // 是否强制使用分片写入
 };
 
-// 表元数据选项定义 / table metadata options
+/**
+ * 表元数据接口
+ * 存储表的基本信息和统计数据
+ */
 export interface TableMeta {
-  mode: 'single' | 'chunked';
-  count: number; // 记录数 / number of records
-  size?: number; // 总字节数 / total bytes
-  chunk?: number; // 分片模式下的分片大小（如果是分片表）/ chunk size (if chunked table)
-  updateAt: number; // 最后更新时间 / last update time
+  mode: 'single' | 'chunked'; // 存储模式：单文件或分片
+  count: number; // 表中的记录数
+  size?: number; // 表的总字节数
+  chunk?: number; // 分片大小（仅在分片模式下存在）
+  updateAt: number; // 最后更新时间戳（毫秒）
 }
-// 目录元数据选项定义 / catalog metadata options
+
+/**
+ * 目录元数据类型
+ * 存储整个数据库的表信息和版本
+ */
 export type Catalog = {
-  tables: Record<string, TableMeta>;
-  version: number; // 目录版本号 / catalog version 1.0.0
+  tables: Record<string, TableMeta>; // 所有表的元数据，键为表名
+  version: number; // 目录版本号
 };

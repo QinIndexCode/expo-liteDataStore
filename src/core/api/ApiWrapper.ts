@@ -1,5 +1,7 @@
 // src/core/api/ApiWrapper.ts
 // API包装器，使用外观模式协调各个组件
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 
 import { ApiResponse } from '../../types/apiResponse';
 import { IStorageAdapter } from '../../types/storageAdapterInfc';

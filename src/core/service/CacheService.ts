@@ -1,10 +1,21 @@
 // src/core/service/CacheService.ts
-
+// 缓存服务，负责管理数据缓存
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
 import { CacheManager } from '../cache/CacheManager';
 
+/**
+ * 缓存服务类
+ * 提供统一的缓存操作接口，封装了 CacheManager 的功能
+ * 负责管理数据缓存，包括缓存的读写、删除、清理和统计等
+ */
 export class CacheService {
   private cacheManager: CacheManager;
 
+  /**
+   * 构造函数
+   * @param cacheManager 缓存管理器实例
+   */
   constructor(cacheManager: CacheManager) {
     this.cacheManager = cacheManager;
   }

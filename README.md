@@ -44,11 +44,12 @@ pnpm add expo-lite-data-store
 
 ## 🚀 快速开始
 
-### TypeScript 版本 (推荐)
-
 ```typescript
-// 方式1：默认导入（推荐，自动选择最佳版本）
+// ES 模块导入
 import { createTable, insert, findOne, findMany, update, remove } from 'expo-lite-data-store';
+
+// CommonJS 导入
+// const { createTable, insert, findOne, findMany, update, remove } = require('expo-lite-data-store');
 
 // 创建用户表
 await createTable('users');
@@ -75,16 +76,13 @@ await update('users', { age: 26 }, { id: 1 });
 await remove('users', { id: 2 });
 ```
 
-### JavaScript 版本
-
 ```javascript
-// CommonJS 导入
+// JavaScript 中使用方式相同
 const { createTable, insert, findMany } = require('expo-lite-data-store');
 
-// ES6 导入
-import { createTable, insert, findMany } from 'expo-lite-data-store';
+// 或使用 ES 模块导入
+// import { createTable, insert, findMany } from 'expo-lite-data-store';
 
-// 使用方式与 TypeScript 版本完全一致
 await createTable('users');
 
 await insert('users', [
@@ -174,11 +172,10 @@ module.exports = {
 
 ### Q: 如何切换不同版本？
 
-A: 所有版本都从dist目录获取，确保生产环境的稳定性：
+A: 库通过类型定义文件自动提供TypeScript支持，JavaScript和TypeScript项目可以使用相同的导入路径：
 
-- `import { ... } from 'expo-lite-data-store'` - 推荐使用（自动选择）
-- `import { ... } from 'expo-lite-data-store/js'` - JavaScript环境
-- `import { ... } from 'expo-lite-data-store/ts'` - TypeScript环境
+- `import { ... } from 'expo-lite-data-store'` - 推荐使用
+- `import { ... } from 'expo-lite-data-store/js'` - 显式指定JavaScript版本（与默认相同）
 
 ### Q: 如何处理中文排序？
 

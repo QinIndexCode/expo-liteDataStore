@@ -1,5 +1,7 @@
-// src/core/MetadataManager.ts
-// 元数据管理器终极版 / Metadata Manager Ultimate Edition
+// src/core/meta/MetadataManager.ts
+// 元数据管理器，负责管理数据库的元数据信息
+// 创建于: 2025-11-23
+// 最后修改: 2025-12-11
 
 import * as FileSystem from 'expo-file-system';
 import { StorageError } from '../../types/storageErrorInfc';
@@ -8,6 +10,10 @@ import ROOT from '../../utils/ROOTPath';
 const META_FILE_PATH = `${ROOT}/meta.ldb`;
 const CURRENT_VERSION = '1.0.0';
 
+/**
+ * 列模式接口
+ * 定义表中列的数据类型和属性
+ */
 export interface ColumnSchema {
   [field: string]:
     | 'string'
@@ -21,27 +27,40 @@ export interface ColumnSchema {
       };
 }
 
+/**
+ * 表模式接口
+ * 定义表的元数据信息
+ */
 export interface TableSchema {
-  mode: 'single' | 'chunked';
-  path: string; // 单文件: "users.ldb"  分片: "users/"
-  count: number;
-  size?: number;
-  lastId?: number;
-  chunks?: number;
-  createdAt: number;
-  updatedAt: number;
-  columns: ColumnSchema;
-  indexes?: Record<string, 'unique' | 'normal'>;
-  isHighRisk?: boolean;
-  highRiskFields?: string[];
+  mode: 'single' | 'chunked'; // 存储模式：单文件或分片
+  path: string; // 文件路径：单文件格式为"users.ldb"，分片格式为"users/"
+  count: number; // 表中记录数
+  size?: number; // 表的总大小（字节）
+  lastId?: number; // 最后一条记录的ID
+  chunks?: number; // 分片数量（仅分片模式）
+  createdAt: number; // 创建时间戳
+  updatedAt: number; // 更新时间戳
+  columns: ColumnSchema; // 列定义
+  indexes?: Record<string, 'unique' | 'normal'>; // 索引信息
+  isHighRisk?: boolean; // 是否为高风险表
+  highRiskFields?: string[]; // 高风险字段列表
 }
 
+/**
+ * 数据库元数据接口
+ * 定义整个数据库的元数据信息
+ */
 export interface DatabaseMeta {
-  version: string;
-  generatedAt: number;
-  tables: Record<string, TableSchema>;
+  version: string; // 数据库版本
+  generatedAt: number; // 元数据生成时间
+  tables: Record<string, TableSchema>; // 所有表的元数据
 }
 
+/**
+ * 元数据管理器类
+ * 负责管理数据库的元数据信息，包括表结构、索引等
+ * 提供元数据的加载、保存、更新和查询功能
+ */
 export class MetadataManager {
   private cache: DatabaseMeta = {
     version: CURRENT_VERSION,

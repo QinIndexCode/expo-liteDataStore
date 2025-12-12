@@ -1,5 +1,134 @@
 # expo-lite-data-store Detailed Documentation
 
+## 🎯 Complete Configuration Guide
+
+### Configuration Overview
+
+LiteStore provides rich configuration options that allow you to adjust performance, security, and behavior according to your project needs. Configuration can be dynamically modified at runtime through the `setConfig()` function, or set through a configuration file.
+
+### Configuration Management API
+
+```typescript
+import { setConfig, getConfig, resetConfig } from 'expo-lite-data-store';
+
+// Set configuration
+setConfig({
+  chunkSize: 10 * 1024 * 1024, // 10MB
+  encryption: {
+    enabled: true,
+    keySize: 256,
+  },
+});
+
+// Get current configuration
+const currentConfig = getConfig();
+console.log(currentConfig);
+
+// Reset configuration to default values
+resetConfig();
+```
+
+### Basic Configuration
+
+| Configuration Item | Type     | Default Value           | Description                                                                                |
+| ------------------ | -------- | ----------------------- | ------------------------------------------------------------------------------------------ |
+| `chunkSize`        | `number` | `5 * 1024 * 1024` (5MB) | Data file chunk size, files exceeding this size will be automatically chunked              |
+| `storageFolder`    | `string` | `'expo-litedatastore'`  | Data storage directory name                                                                |
+| `sortMethods`      | `string` | `'default'`             | Default sorting algorithm, optional values: `default`, `fast`, `counting`, `merge`, `slow` |
+| `timeout`          | `number` | `10000` (10 seconds)    | Operation timeout duration                                                                 |
+
+### Encryption Configuration
+
+| Configuration Item           | Type       | Default Value               | Description                                                                                   |
+| ---------------------------- | ---------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| `algorithm`                  | `string`   | `'AES-CTR'`                 | Encryption algorithm, supports `AES-CTR`                                                      |
+| `keySize`                    | `number`   | `256`                       | Encryption key length, supports `128`, `192`, `256`                                           |
+| `hmacAlgorithm`              | `string`   | `'SHA-512'`                 | HMAC integrity protection algorithm                                                           |
+| `keyIterations`              | `number`   | `120000`                    | Key derivation iteration count, higher values provide stronger security but lower performance |
+| `enableFieldLevelEncryption` | `boolean`  | `false`                     | Whether to enable field-level encryption                                                      |
+| `encryptedFields`            | `string[]` | Common sensitive field list | List of fields to be encrypted by default                                                     |
+| `cacheTimeout`               | `number`   | `30000` (30 seconds)        | Cache timeout for masterKey in memory                                                         |
+| `maxCacheSize`               | `number`   | `50`                        | Maximum number of derived keys to retain in LRU cache                                         |
+| `useBulkOperations`          | `boolean`  | `true`                      | Whether to enable bulk operation optimization                                                 |
+
+### Performance Configuration
+
+| Configuration Item        | Type      | Default Value | Description                                             |
+| ------------------------- | --------- | ------------- | ------------------------------------------------------- |
+| `enableQueryOptimization` | `boolean` | `true`        | Whether to enable query optimization (indexing)         |
+| `maxConcurrentOperations` | `number`  | `5`           | Maximum number of concurrent operations                 |
+| `enableBatchOptimization` | `boolean` | `true`        | Whether to enable batch operation optimization          |
+| `memoryWarningThreshold`  | `number`  | `0.8`         | Memory usage threshold to trigger warning (between 0-1) |
+
+### Cache Configuration
+
+| Configuration Item       | Type      | Default Value        | Description                                     |
+| ------------------------ | --------- | -------------------- | ----------------------------------------------- |
+| `maxSize`                | `number`  | `1000`               | Maximum number of cache entries                 |
+| `defaultExpiry`          | `number`  | `3600000` (1 hour)   | Default cache expiration time                   |
+| `enableCompression`      | `boolean` | `false`              | Whether to enable cache data compression        |
+| `cleanupInterval`        | `number`  | `300000` (5 minutes) | Cache cleanup interval                          |
+| `memoryWarningThreshold` | `number`  | `0.8`                | Cache memory usage threshold to trigger warning |
+| `autoSync.enabled`       | `boolean` | `true`               | Whether to enable auto-sync                     |
+| `autoSync.interval`      | `number`  | `5000` (5 seconds)   | Auto-sync interval                              |
+| `autoSync.minItems`      | `number`  | `1`                  | Minimum number of dirty items to trigger sync   |
+| `autoSync.batchSize`     | `number`  | `100`                | Maximum number of items to sync per batch       |
+
+### API Configuration
+
+| Configuration Item            | Type      | Default Value | Description                         |
+| ----------------------------- | --------- | ------------- | ----------------------------------- |
+| `rateLimit.enabled`           | `boolean` | `true`        | Whether to enable API rate limiting |
+| `rateLimit.requestsPerSecond` | `number`  | `20`          | Maximum requests per second         |
+| `rateLimit.burstCapacity`     | `number`  | `40`          | Burst request capacity              |
+| `retry.maxAttempts`           | `number`  | `3`           | Maximum number of retry attempts    |
+| `retry.backoffMultiplier`     | `number`  | `2`           | Retry backoff multiplier            |
+
+### Monitoring Configuration
+
+| Configuration Item          | Type      | Default Value         | Description                            |
+| --------------------------- | --------- | --------------------- | -------------------------------------- |
+| `enablePerformanceTracking` | `boolean` | `true`                | Whether to enable performance tracking |
+| `enableHealthChecks`        | `boolean` | `true`                | Whether to enable health checks        |
+| `metricsRetention`          | `number`  | `86400000` (24 hours) | Performance metrics retention duration |
+
+### Configuration Best Practices
+
+1. **Performance Optimization**:
+
+   ```typescript
+   setConfig({
+     performance: {
+       enableQueryOptimization: true,
+       maxConcurrentOperations: 8, // Adjust based on device performance
+       enableBatchOptimization: true,
+     },
+   });
+   ```
+
+2. **Security Enhancement**:
+
+   ```typescript
+   setConfig({
+     encryption: {
+       keyIterations: 200000, // Increase key derivation iterations
+       cacheTimeout: 15000, // Reduce key cache time
+       enableFieldLevelEncryption: true,
+     },
+   });
+   ```
+
+3. **Memory Optimization**:
+   ```typescript
+   setConfig({
+     cache: {
+       maxSize: 500, // Reduce cache size
+       enableCompression: true, // Enable cache compression
+       memoryWarningThreshold: 0.7, // Lower memory warning threshold
+     },
+   });
+   ```
+
 ## 🎯 Advanced Queries
 
 ### Query Operators
@@ -428,11 +557,12 @@ interface WriteResult {
 
 ## 🎯 Version Selection
 
-| Import Path                 | Type Support   | Use Case               | Source Files                                 |
-| --------------------------- | -------------- | ---------------------- | -------------------------------------------- |
-| `'expo-lite-data-store'`    | ✅ Auto-select | Recommended (default)  | `dist/js/index.js` + `dist/types/index.d.ts` |
-| `'expo-lite-data-store/js'` | ✅ TypeScript  | JavaScript environment | `dist/js/index.js` + `dist/types/index.d.ts` |
-| `'expo-lite-data-store/ts'` | ✅ TypeScript  | TypeScript environment | `dist/js/index.js` + `dist/types/index.d.ts` |
+| Import Path                 | Type Support  | Use Case               | Source Files                                 |
+| --------------------------- | ------------- | ---------------------- | -------------------------------------------- |
+| `'expo-lite-data-store'`    | ✅ TypeScript | Recommended (default)  | `dist/js/index.js` + `dist/types/index.d.ts` |
+| `'expo-lite-data-store/js'` | ✅ TypeScript | JavaScript environment | `dist/js/index.js` + `dist/types/index.d.ts` |
+
+> Note: TypeScript support is automatically provided through type definition files. All import paths include complete type support, no need to select a separate TypeScript version.
 
 ## 🎯 Build Tool Integration
 

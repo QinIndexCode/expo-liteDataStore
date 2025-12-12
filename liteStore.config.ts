@@ -13,7 +13,7 @@
  * // 在应用启动时设置配置
  * setConfig(liteStoreConfig);
  */
-import { LiteStoreConfig } from './node_modules/expo-lite-data-store/dist/types/types/config';
+import { LiteStoreConfig } from 'expo-lite-data-store';
 
 const config: LiteStoreConfig = {
   // 基础配置

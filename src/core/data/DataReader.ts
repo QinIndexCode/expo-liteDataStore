@@ -1,4 +1,8 @@
 // src/core/data/DataReader.ts
+// 数据读取器，负责从文件系统读取和处理数据
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import config from '../../liteStore.config';
 import { IMetadataManager } from '../../types/metadataManagerInfc';
 import type { ReadOptions } from '../../types/storageTypes';
@@ -10,27 +14,57 @@ import { ChunkedFileHandler } from '../file/ChunkedFileHandler';
 import { SingleFileHandler } from '../file/SingleFileHandler';
 import { IndexManager } from '../index/IndexManager';
 import { QueryEngine } from '../query/QueryEngine';
+
+/**
+ * 数据读取器
+ * 负责从文件系统读取数据并应用过滤、排序和分页
+ */
 export class DataReader {
+  /** 索引管理器 */
   private indexManager: IndexManager;
+  /** 元数据管理器 */
   private metadataManager: IMetadataManager;
+  /** 缓存管理器 */
   private cacheManager: CacheManager;
 
+  /**
+   * 构造函数
+   * @param metadataManager 元数据管理器
+   * @param indexManager 索引管理器
+   * @param cacheManager 缓存管理器
+   */
   constructor(metadataManager: IMetadataManager, indexManager: IndexManager, cacheManager: CacheManager) {
     this.metadataManager = metadataManager;
     this.indexManager = indexManager;
     this.cacheManager = cacheManager;
   }
 
+  /**
+   * 获取单文件处理器
+   * @param tableName 表名
+   * @returns SingleFileHandler 单文件处理器
+   */
   private getSingleFile(tableName: string): SingleFileHandler {
     // 直接使用根路径和表名构造完整文件路径，避免依赖全局 File 构造函数
     const filePath = `${ROOT}${tableName}.ldb`;
     return new SingleFileHandler(filePath);
   }
 
+  /**
+   * 获取分片文件处理器
+   * @param tableName 表名
+   * @returns ChunkedFileHandler 分片文件处理器
+   */
   private getChunkedHandler(tableName: string): ChunkedFileHandler {
     return new ChunkedFileHandler(tableName, this.metadataManager);
   }
 
+  /**
+   * 读取表数据
+   * @param tableName 表名
+   * @param options 读取选项
+   * @returns Promise<Record<string, any>[]> 读取的数据数组
+   */
   async read(tableName: string, options?: ReadOptions & { bypassCache?: boolean }): Promise<Record<string, any>[]> {
     return ErrorHandler.handleAsyncError(
       async () => {
@@ -143,6 +177,12 @@ export class DataReader {
     );
   }
 
+  /**
+   * 查找单条记录
+   * @param tableName 表名
+   * @param filter 过滤条件
+   * @returns Promise<Record<string, any> | null> 找到的记录或null
+   */
   async findOne(tableName: string, filter: Record<string, any>): Promise<Record<string, any> | null> {
     return ErrorHandler.handleAsyncError(
       async () => {
@@ -155,6 +195,13 @@ export class DataReader {
     );
   }
 
+  /**
+   * 查找多条记录
+   * @param tableName 表名
+   * @param filter 过滤条件
+   * @param options 查询选项
+   * @returns Promise<Record<string, any>[]> 找到的记录数组
+   */
   async findMany(
     tableName: string,
     filter?: Record<string, any>,

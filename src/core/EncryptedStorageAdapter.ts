@@ -237,15 +237,6 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
           result = raw;
         }
 
-        // 调试日志：查看读取到的数据
-        console.log('Debug - Read data:', result.length, 'items');
-        if (result.length > 0) {
-          console.log('Debug - First item:', result[0]);
-          if (result.length > 49) {
-            console.log('Debug - Item 50:', result[49]);
-          }
-        }
-
         // 只有当缓存超时时间大于0时，才更新缓存
         if (this.cacheTimeout > 0) {
           this.cachedData.set(tableName, {
@@ -295,6 +286,15 @@ export class EncryptedStorageAdapter implements IStorageAdapter {
     // 对于加密表，我们需要读取所有数据来获取计数
     const data = await this.read(tableName);
     return data.length;
+  }
+
+  /**
+   * 验证表的计数准确性（加密适配器版本）
+   * 对于加密表，计数直接从数据读取，不涉及元数据
+   */
+  async verifyCount(tableName: string): Promise<{ metadata: number; actual: number; match: boolean }> {
+    // 加密适配器：直接从底层存储适配器获取验证结果
+    return storage.verifyCount(tableName);
   }
 
   async findOne(tableName: string, filter: Record<string, any>): Promise<Record<string, any> | null> {

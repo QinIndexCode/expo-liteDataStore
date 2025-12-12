@@ -1,10 +1,19 @@
 // src/core/file/SingleFileHandler.ts
+// 单文件处理器，用于处理单文件存储模式的文件操作
+// 创建于: 2025-11-23
+// 最后修改: 2025-12-11
+
 import * as FileSystem from 'expo-file-system';
 import { FileInfo, EncodingType } from 'expo-file-system';
 import { StorageError } from '../../types/storageErrorInfc';
 import withTimeout from '../../utils/withTimeout';
 import { FileHandlerBase } from './FileHandlerBase';
 
+/**
+ * 单文件处理器类
+ * 处理单文件存储模式的文件操作，包括数据的写入、读取和删除
+ * 继承自FileHandlerBase，实现了单文件存储的核心逻辑
+ */
 export class SingleFileHandler extends FileHandlerBase {
   constructor(private filePath: string) {
     super();

@@ -43,3 +43,5 @@ app-example
 /android
 # 测试覆盖率
 /coverage
+
+package-lock.json

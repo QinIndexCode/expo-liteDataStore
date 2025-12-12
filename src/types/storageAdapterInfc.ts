@@ -133,6 +133,21 @@ export interface IStorageAdapter {
 
   /**
    * zh-CN:
+   * 验证表的计数准确性（诊断和修复用）
+   * 返回元数据中的计数和实际计数的比较结果
+   * 如果不匹配会自动修复元数据
+   * en:
+   * verify table count accuracy (for diagnosis and repair)
+   * returns comparison result of metadata count and actual count
+   * auto-fixes metadata if mismatch detected
+   * ————————
+   * @param tableName table name / 表名
+   * @returns Promise<{metadata: number; actual: number; match: boolean}>
+   */
+  verifyCount(tableName: string): Promise<{ metadata: number; actual: number; match: boolean }>;
+
+  /**
+   * zh-CN:
    * 查找单条记录
    * en:
    * find one record
@@ -151,13 +166,19 @@ export interface IStorageAdapter {
    * ————————
    * @param tableName table name / 表名
    * @param filter filter condition / 过滤条件
-   * @param options options including skip and limit / 包含skip和limit的选项
+   * @param options options including skip, limit, sortBy, order and sortAlgorithm
    * @returns Promise<Record<string, any>[]>
    */
   findMany(
     tableName: string,
     filter?: Record<string, any>,
-    options?: { skip?: number; limit?: number }
+    options?: {
+      skip?: number;
+      limit?: number;
+      sortBy?: string | string[];
+      order?: 'asc' | 'desc' | ('asc' | 'desc')[];
+      sortAlgorithm?: 'default' | 'fast' | 'counting' | 'merge' | 'slow';
+    }
   ): Promise<Record<string, any>[]>;
 
   /**

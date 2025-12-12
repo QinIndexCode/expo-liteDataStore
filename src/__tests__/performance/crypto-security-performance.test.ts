@@ -22,8 +22,8 @@ import {
   getMasterKey,
   hashPassword,
   verifyPassword,
-} from './utils/crypto';
-import config from './liteStore.config';
+} from '../../utils/crypto';
+import config from '../../liteStore.config';
 
 // ==================== 高精度计时（React Native 安全）===================
 const preciseNow = () => (global.performance || Date).now();

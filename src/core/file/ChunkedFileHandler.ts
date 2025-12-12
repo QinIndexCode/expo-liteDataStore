@@ -1,7 +1,8 @@
-/**
- * ChunkedFileHandler handles file operations for chunked storage mode.
- * It appends data to multiple files (chunks) and manages metadata.
- */
+// src/core/file/ChunkedFileHandler.ts
+// 分片文件处理器，用于处理分片存储模式的文件操作
+// 创建于: 2025-11-23
+// 最后修改: 2025-12-11
+
 import * as FileSystem from 'expo-file-system';
 import { EncodingType } from 'expo-file-system';
 import config from '../../liteStore.config';
@@ -12,6 +13,11 @@ import { FileHandlerBase } from './FileHandlerBase';
 
 const CHUNK_EXT = '.ldb';
 
+/**
+ * 分片文件处理器类
+ * 处理分片存储模式的文件操作，包括数据的写入、读取、追加和清除
+ * 继承自FileHandlerBase，实现了分片存储的核心逻辑
+ */
 export class ChunkedFileHandler extends FileHandlerBase {
   private tableName: string;
   private tableDirPath: string;

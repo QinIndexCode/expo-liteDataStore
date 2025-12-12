@@ -1,3 +1,8 @@
+// src/core/TransactionManager.ts
+// 事务管理器，负责处理事务的开始、提交和回滚，确保数据一致性
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import { StorageError } from '../types/storageErrorInfc';
 import { IMetadataManager } from '../types/metadataManagerInfc';
 
@@ -8,18 +13,20 @@ import withTimeout from '../utils/withTimeout';
 import ROOT from '../utils/ROOTPath';
 
 /**
- * 事务操作类型
+ * 事务操作类型定义
+ * 描述事务中执行的操作类型和参数
  */
 type TransactionOperation = {
-  tableName: string;
-  type: 'write' | 'delete' | 'bulkWrite';
-  data: any;
-  options?: any;
+  tableName: string; // 操作的表名
+  type: 'write' | 'delete' | 'bulkWrite'; // 操作类型
+  data: any; // 操作数据
+  options?: any; // 操作选项
 };
 
 /**
  * 事务管理器类
  * 负责处理事务相关的功能，包括事务开始、提交和回滚
+ * 确保数据操作的原子性和一致性，支持单文件和分片文件模式
  */
 export class TransactionManager {
   /**

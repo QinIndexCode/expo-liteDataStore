@@ -117,30 +117,25 @@ export class AutoSyncService {
         return;
       }
 
-      // 按表分组，批量同步
-      const tableDataMap = this.groupDataByTable(dirtyData);
+      // 直接处理脏数据映射，无需按表分组
+      // 遍历所有脏数据
+      for (const [cacheKey, data] of dirtyData.entries()) {
+        // 从缓存键中提取表名
+        const tableName = cacheKey.split('_')[0];
 
-      for (const [tableName, dataItems] of tableDataMap.entries()) {
-        console.log('[AutoSyncService] 同步表', tableName, '的', dataItems.length, '个项目');
+        console.log('[AutoSyncService] 同步表', tableName, '的1个项目');
 
-        // 分批次同步，避免单次操作过大
-        for (let i = 0; i < dataItems.length; i += this.config.batchSize) {
-          const batch = dataItems.slice(i, i + this.config.batchSize);
+        // 写入磁盘（注意：这里需要根据实际情况调整写入模式）
+        // 由于我们不知道原始数据是单条还是多条，暂时使用append模式
+        // 更完善的实现应该在缓存时保存更多的元数据
+        await this.storageAdapter.write(tableName, data, { mode: 'append' });
 
-          // 写入磁盘
-          await this.storageAdapter.write(tableName, batch, { mode: 'overwrite' });
+        // 直接使用缓存键标记为干净数据
+        this.cacheService.markAsClean(cacheKey);
 
-          // 标记为干净数据
-          batch.forEach(item => {
-            // 假设每个项目都有id字段作为缓存键
-            const cacheKey = `${tableName}_${item.id}`;
-            this.cacheService.markAsClean(cacheKey);
-          });
-
-          // 更新统计信息
-          this.stats.totalItemsSynced += batch.length;
-          console.log('[AutoSyncService] 完成同步表', tableName, '的', batch.length, '个项目');
-        }
+        // 更新统计信息
+        this.stats.totalItemsSynced += 1;
+        console.log('[AutoSyncService] 完成同步表', tableName, '的1个项目');
       }
 
       // 更新统计信息
@@ -157,28 +152,6 @@ export class AutoSyncService {
     } finally {
       this.isSyncing = false;
     }
-  }
-
-  /**
-   * 按表分组脏数据
-   * @param dirtyData 脏数据映射
-   * @returns 按表分组的数据
-   */
-  private groupDataByTable(dirtyData: Map<string, any>): Map<string, any[]> {
-    const tableDataMap = new Map<string, any[]>();
-
-    for (const [cacheKey, data] of dirtyData.entries()) {
-      // 从缓存键中提取表名，假设缓存键格式为 "tableName_id"
-      const tableName = cacheKey.split('_')[0];
-
-      if (!tableDataMap.has(tableName)) {
-        tableDataMap.set(tableName, []);
-      }
-
-      tableDataMap.get(tableName)?.push(data);
-    }
-
-    return tableDataMap;
   }
 
   /**

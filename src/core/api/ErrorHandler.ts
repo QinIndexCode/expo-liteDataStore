@@ -1,8 +1,15 @@
+// src/core/api/ErrorHandler.ts
+// 错误处理器，负责统一的错误处理和响应格式化
+// 创建于: 2025-12-11
+// 最后修改: 2025-12-11
+
 import { ApiResponse } from '../../types/apiResponse.js';
 import { StorageError } from '../../types/storageErrorInfc.js';
 
 /**
- * 错误处理器，负责统一的错误处理和响应格式化
+ * 错误处理器类
+ * 负责统一的错误处理和响应格式化
+ * 将各种错误转换为标准化的API响应格式
  */
 export class ErrorHandler {
   /**

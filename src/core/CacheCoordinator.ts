@@ -1,8 +1,14 @@
+// src/core/CacheCoordinator.ts
+// 缓存协调器，负责缓存键生成、缓存读写和表级缓存清理
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import { CacheManager } from './cache/CacheManager';
 
 /**
  * 缓存协调器类
- * 负责处理缓存管理相关的功能，包括缓存键生成、缓存清理等
+ * 负责处理缓存管理相关的功能，包括缓存键生成、缓存读写和表级缓存清理
+ * 作为缓存管理的中间层，提供统一的缓存操作接口
  */
 export class CacheCoordinator {
   /**

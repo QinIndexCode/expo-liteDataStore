@@ -1,4 +1,8 @@
 // src/core/adapter/StorageAdapterFactory.ts
+// 存储适配器工厂，负责创建不同类型的存储适配器实例
+// 创建于: 2025-11-28
+// 最后修改: 2025-12-11
+
 import { IMetadataManager } from '../../types/metadataManagerInfc';
 import { IStorageAdapter } from '../../types/storageAdapterInfc';
 import { meta } from '../meta/MetadataManager';

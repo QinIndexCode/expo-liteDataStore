@@ -36,5 +36,13 @@
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
-  "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "dist/**", "coverage/**", "__mocks__/**"]
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "dist/**",
+    "coverage/**",
+    "__mocks__/**",
+    "test-install/**"
+  ]
 }
